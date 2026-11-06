@@ -2,7 +2,7 @@
   'use strict';
   if (location.origin !== 'https://leopard-x.memofun.net' || globalThis.__iantoLeopardWorker) return;
   globalThis.__iantoLeopardWorker = true;
-  const BUILD = '2026-11-05.1', PROTOCOL = 2;
+  const BUILD = '2026-11-06.1', PROTOCOL = 2;
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const normalized = value => String(value || '').replace(/\s+/g, ' ').trim();
   const visible = element => !!element && element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0 && getComputedStyle(element).visibility !== 'hidden';
@@ -182,7 +182,8 @@
   const temporaryConversation = url => /^https:\/\/leopard-x\.memofun\.net\/c\/WEB(?::|%3A)/i.test(String(url || ''));
   const canonicalConversation = url => String(url || '').startsWith('https://leopard-x.memofun.net/c/') && !temporaryConversation(url);
   function signature(job) {
-    const value = JSON.stringify([job.prompt,job.siteModel,job.modelOptions,job.images]); let hash = 2166136261;
+    const imageManifest = (job.images || []).map(image => [image.name || '', image.role || '', Number(image.byteSize) || 0]);
+    const value = JSON.stringify([job.prompt,job.siteModel,job.modelOptions,job.materialKey || imageManifest,job.aspectRatio]); let hash = 2166136261;
     for (let index=0;index<value.length;index++) hash = Math.imul(hash ^ value.charCodeAt(index),16777619);
     return String(hash >>> 0);
   }
@@ -217,7 +218,27 @@
     return {success:true,imageDataUrl,siteModel:journal.siteModel,conversationUrl:location.href,width:image.naturalWidth,height:image.naturalHeight};
   }
   async function run(job) {
-    if (!job.taskKey || !job.siteModel || !job.prompt?.trim() || !job.images?.length) throw new Error('[LEOPARD_TASK] 任务缺少模型、提示词、图片或恢复编号');
+    const materialOnly = !!job.materialOnly;
+    const continuous = job.uploadMode === 'continuous';
+    if (!job.siteModel || (materialOnly && !continuous) || (!materialOnly && (!job.prompt?.trim() || (!continuous && !job.images?.length) || (continuous && !job.materialKey) || !job.taskKey))) throw new Error('[LEOPARD_TASK] 任务缺少模型、提示词、图片或恢复编号');
+    await waitFor(() => textbox() && visible(textbox()),30000,'[LEOPARD_LOGIN] 请先登录 Leopard X');
+    if (materialOnly) {
+      await globalThis.IantoMaterialSession.prepare(job, {
+        status: text => progress(job, text), upload,
+        reset: async () => {
+          for (const button of Array.from(composer()?.querySelectorAll('button[aria-label*="Remove"],button[aria-label*="移除"],button[aria-label*="删除"]') || [])) if (visible(button)) button.click();
+          fill(textbox(), ''); await waitFor(() => !attachments().length,10000,'[MATERIAL_SETUP] 上一批素材附件尚未清空');
+        },
+        replies: assistantMessages, busy: () => !!stopButton(),
+        send: async text => {
+          const box = textbox(); fill(box, text);
+          await waitFor(() => {const button=sendButton();return button&&!button.disabled&&button.getAttribute('aria-disabled')!=='true';},60000,'[MATERIAL_SETUP] 素材上传未就绪');
+          sendButton().click();
+          await waitFor(() => userMessages().some(item => normalized(textValue(item)).includes(normalized(text))),35000,'[MATERIAL_SETUP] Leopard X 未确认素材登记消息，请检查原会话');
+        }
+      });
+      return {success:true,materialRegistered:true,conversationUrl:location.href};
+    }
     const fingerprint = signature(job);
     let journal = await journalRead(job.taskKey);
     if (journal && journal.signature !== fingerprint) throw new Error('[LEOPARD_TASK] 恢复任务与原提示词或模型不一致，请重新发起该图片');
@@ -226,7 +247,6 @@
       progress(job,'正在恢复 Leopard X 原会话并取图（不会重复提交）');
       return collect(job,journal);
     }
-    await waitFor(() => textbox() && visible(textbox()),30000,'[LEOPARD_LOGIN] 请先登录 Leopard X');
     if (stopButton()) throw new Error('[LEOPARD_BUSY] 网页仍在处理上一条任务');
     if (journal?.phase === 'prepared') {
       const draft = normalized(textValue(textbox()));

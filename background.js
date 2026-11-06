@@ -3282,7 +3282,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // 本通道只复用 Chrome 当前网页的登录状态，不读取或保存账号密码/Cookie。
 // ============================================================================
 const WEB_IMAGE_PROTOCOL = 2;
-const WEB_IMAGE_BUILD = '2026-11-05.1';
+const WEB_IMAGE_BUILD = '2026-11-06.1';
 // Workers renew this lease while they are queued or generating. A fixed short
 // timeout cannot represent a real image task, which may legitimately take many
 // minutes. Missing tabs are released immediately; silent workers are released
@@ -3293,6 +3293,7 @@ const WEB_IMAGE_PROVIDERS = {
         stateKey: 'geminiWebAutomationTab',
         openUrl: 'https://gemini.google.com/app',
         urlPrefix: 'https://gemini.google.com/',
+        isConversationUrl: url => /^https:\/\/gemini\.google\.com\/(?:u\/\d+\/)?app\/[^/?#]+/i.test(String(url || '')),
         pingAction: 'geminiWebWorkerPing',
         runAction: 'runGeminiWebImageJob',
         label: 'Gemini'
@@ -3301,6 +3302,7 @@ const WEB_IMAGE_PROVIDERS = {
         stateKey: 'chatgptWebAutomationTab',
         openUrl: 'https://chatgpt.com/',
         urlPrefix: 'https://chatgpt.com/',
+        isConversationUrl: url => /^https:\/\/chatgpt\.com\/(?:g\/[^/]+\/)?c\/[^/?#]+/i.test(String(url || '')),
         pingAction: 'chatgptWebWorkerPing',
         runAction: 'runChatGPTWebImageJob',
         label: 'ChatGPT'
@@ -3309,6 +3311,7 @@ const WEB_IMAGE_PROVIDERS = {
         stateKey: 'leopardWebAutomationTab',
         openUrl: 'https://leopard-x.memofun.net/',
         urlPrefix: 'https://leopard-x.memofun.net/',
+        isConversationUrl: url => /^https:\/\/leopard-x\.memofun\.net\/c\//i.test(String(url || '')),
         pingAction: 'leopardWebWorkerPing',
         runAction: 'runLeopardWebImageJob',
         label: 'Leopard X'
@@ -3386,8 +3389,9 @@ async function geminiWebEnsureTab(provider, conversationKey, resumeUrl) {
     const providerConfig = WEB_IMAGE_PROVIDERS[provider];
     if (!providerConfig) throw new Error('[PROVIDER] 未知出图渠道：' + provider);
     const shouldActivate = true;
-    const openUrl = resumeUrl && String(resumeUrl).startsWith(providerConfig.urlPrefix + 'c/') ? resumeUrl : providerConfig.openUrl;
     const saved = (await chrome.storage.local.get(providerConfig.stateKey))[providerConfig.stateKey] || {};
+    const effectiveResumeUrl = resumeUrl || (saved.conversationKey === conversationKey ? saved.resumeUrl : null);
+    const openUrl = effectiveResumeUrl && providerConfig.isConversationUrl(effectiveResumeUrl) ? effectiveResumeUrl : providerConfig.openUrl;
     let tab = null;
     if (saved.tabId) {
         try { tab = await chrome.tabs.get(saved.tabId); } catch (_) {}
@@ -3400,18 +3404,18 @@ async function geminiWebEnsureTab(provider, conversationKey, resumeUrl) {
             await chrome.tabGroups.update(groupId, { title: 'Ianto 🤖', color: 'cyan' });
         } catch (e) {}
         await chrome.storage.local.set({
-            [providerConfig.stateKey]: { tabId: tab.id, conversationKey }
+            [providerConfig.stateKey]: { tabId: tab.id, conversationKey, ...(providerConfig.isConversationUrl(openUrl) ? { resumeUrl: openUrl } : {}) }
         });
         await geminiWebWaitTabComplete(tab.id);
         await geminiWebDelay(2000);
-    } else if (saved.conversationKey !== conversationKey || !String(tab.url || '').startsWith(providerConfig.urlPrefix) || (resumeUrl && tab.url !== openUrl)) {
+    } else if (saved.conversationKey !== conversationKey || !String(tab.url || '').startsWith(providerConfig.urlPrefix) || (effectiveResumeUrl && tab.url !== openUrl)) {
         tab = await chrome.tabs.update(tab.id, { url: openUrl, active: shouldActivate });
         try {
             const groupId = await chrome.tabs.group({ tabIds: tab.id });
             await chrome.tabGroups.update(groupId, { title: 'Ianto 🤖', color: 'cyan' });
         } catch (e) {}
         await chrome.storage.local.set({
-            [providerConfig.stateKey]: { tabId: tab.id, conversationKey }
+            [providerConfig.stateKey]: { tabId: tab.id, conversationKey, ...(providerConfig.isConversationUrl(openUrl) ? { resumeUrl: openUrl } : {}) }
         });
         await geminiWebWaitTabComplete(tab.id);
         await geminiWebDelay(2000);
@@ -3443,7 +3447,11 @@ async function geminiWebForgetAutomationTab(provider, tabId) {
     const providerConfig = WEB_IMAGE_PROVIDERS[provider];
     if (!providerConfig) return;
     const saved = (await chrome.storage.local.get(providerConfig.stateKey))[providerConfig.stateKey];
-    if (saved?.tabId === tabId) await chrome.storage.local.remove(providerConfig.stateKey);
+    if (saved?.tabId === tabId) {
+        const retained = { ...saved };
+        delete retained.tabId;
+        await chrome.storage.local.set({ [providerConfig.stateKey]: retained });
+    }
 }
 
 async function geminiWebJobTabExists(jobInfo) {
@@ -3501,6 +3509,18 @@ async function geminiWebStoreResult(jobId, result) {
     // A cancelled/replaced task no longer owns a result slot. Ignore a late
     // worker response instead of reviving it and overwriting the new run.
     if (!jobInfo) return false;
+    const canResumeMaterialConversation = jobInfo.uploadMode === 'continuous'
+        && result?.conversationUrl
+        && (result?.materialRegistered || jobInfo.materialOnly);
+    if (canResumeMaterialConversation) {
+        const providerConfig = WEB_IMAGE_PROVIDERS[jobInfo.provider];
+        if (providerConfig) {
+            const saved = (await chrome.storage.local.get(providerConfig.stateKey))[providerConfig.stateKey] || {};
+            if (saved.conversationKey === jobInfo.conversationKey && providerConfig.isConversationUrl(result.conversationUrl)) {
+                await chrome.storage.local.set({ [providerConfig.stateKey]: { ...saved, resumeUrl: result.conversationUrl } });
+            }
+        }
+    }
     if (jobInfo?.originTabId) {
         try {
             chrome.tabs.sendMessage(jobInfo.originTabId, {
@@ -3579,13 +3599,18 @@ async function geminiWebDispatchReservedJob(request, originTabId) {
         }
     }
     if (request?.jobId) {
-        await geminiWebSaveJob(request.jobId, { jobId: request.jobId, originTabId, provider, createdAt: Date.now(), restoreEditor: !!request.restoreEditor });
+        await geminiWebSaveJob(request.jobId, { jobId: request.jobId, originTabId, provider, conversationKey: request.conversationKey, uploadMode: request.uploadMode, materialOnly: !!request.materialOnly, createdAt: Date.now(), restoreEditor: !!request.restoreEditor });
     }
     try {
         const providerConfig = WEB_IMAGE_PROVIDERS[provider];
+        const continuous = request.uploadMode === 'continuous';
         const journal = provider === 'leopard' && request.taskKey ? (await chrome.storage.local.get('leopardImageTask_' + request.taskKey))['leopardImageTask_' + request.taskKey] : null;
         if (journal && ['submitting','submitted','done'].includes(journal.phase) && !String(journal.conversationUrl || '').startsWith('https://leopard-x.memofun.net/c/')) throw new Error('[SUBMISSION_UNKNOWN] Leopard X 任务可能已提交但尚未记录会话地址，请先在网站确认，系统未重复发送');
         let resumeUrl=journal?.conversationUrl;
+        if (continuous && !resumeUrl) {
+            const saved=(await chrome.storage.local.get(providerConfig.stateKey))[providerConfig.stateKey];
+            if (saved?.conversationKey === request.conversationKey) resumeUrl=saved.resumeUrl || null;
+        }
         if (provider === 'leopard' && /\/c\/WEB(?::|%3A)/i.test(String(resumeUrl || ''))) {
             const saved=(await chrome.storage.local.get(providerConfig.stateKey))[providerConfig.stateKey];
             if (saved?.conversationKey === request.taskKey) {
@@ -3595,7 +3620,6 @@ async function geminiWebDispatchReservedJob(request, originTabId) {
                 } catch (_) {}
             }
         }
-        const continuous = request.uploadMode === 'continuous';
         const tab = await geminiWebEnsureTab(provider, provider === 'leopard' && !continuous ? String(request.taskKey || request.jobId) : String(request.conversationKey || 'default'), resumeUrl);
         if (continuous) {
             const worker = await geminiWebSendToTab(tab.id, { action: providerConfig.pingAction });
@@ -3624,6 +3648,12 @@ async function geminiWebDispatchReservedJob(request, originTabId) {
             uploadMode: request.uploadMode,
             materialKey: request.materialKey,
             materialRules: request.materialRules,
+            materialOnly: !!request.materialOnly,
+            materialIndex: request.materialIndex,
+            materialCount: request.materialCount,
+            materialRole: request.materialRole,
+            materialManifest: request.materialManifest,
+            materialFinalRules: !!request.materialFinalRules,
             aspectRatio: request.aspectRatio,
             siteModel: request.siteModel,
             modelOptions: request.modelOptions,

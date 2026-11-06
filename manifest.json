@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ianto",
-  "version": "2.9.2",
+  "version": "2.9.3",
   "options_page": "market_capture/settings.html",
   "description": "||1.输入关键词，一键在单国家多个头部电商和数据平台打开搜索结果。||2.优化 Gemini, NotebookLM, Claude, ChatGPT, Manus 和 Grok 网页的阅读模式，使其内容更宽并居中，增加对话分类功能。||3.抓取并展示当前页面的产品标题。目前支持AE, amz, Walmart, eBay, TT(fastmoss, echotik, Tokopedia), shopee(官网+shopdora.com) , lazada, mercadolibre(官网+lingdongsz.com), temu平台。||4.TikTok Shop 链接重定向器。||5.数据网关允许调用领星的部分产品数据。||6.根据sku查询海外仓一系列数据。||7.VOC爬取辅助功能。||8.在网页中同时高亮多个关键词。||9.作图系统自动化调用 Gemini 或 ChatGPT 网页，还有合租AI:leopard-x.memofun.net。||10.Amazon图片搜索功能",
   

@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const WORKER_BUILD = '2026-11-05.1';
+  const WORKER_BUILD = '2026-11-06.1';
   const PROTOCOL_VERSION = 2;
 
   if (globalThis.__iantoGeminiImageWorkerLoaded) return;
@@ -416,7 +416,7 @@
     activeJobId = job.jobId || null;
     activeOriginTabId = Number.isInteger(job.originTabId) ? job.originTabId : null;
     const prompt = String(job.prompt || '').trim();
-    if (!prompt) throw new Error('Gemini 作图提示词为空');
+    if (!prompt && !job.materialOnly) throw new Error('Gemini 作图提示词为空');
     updateStatus('⏳ 正在等待 Gemini 网页空闲...', 'info');
     await waitFor(() => !generationInProgress(), 12 * 60 * 1000, 300,
       '上一张图片仍未完成，等待 Gemini 网页空闲超时');
@@ -437,6 +437,7 @@
           if (!await submitPrompt(box, text, before)) throw new Error('[MATERIAL_SETUP] Gemini 未确认素材登记消息，请检查原会话');
         }
       });
+      if (job.materialOnly) return { success: true, materialRegistered: true, conversationUrl: location.href };
       textbox = await waitFor(findTextbox, 30000, 250);
     }
 

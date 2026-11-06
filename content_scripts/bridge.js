@@ -141,7 +141,7 @@ document.addEventListener('REQUEST_REVIEW_SCRAPE', function(e) {
 // --- AI Photo Editor → Gemini 网页作图桥接 ---
 // 只接受约定客户端，避免其他 localhost 页面误触发网页自动化。
 const GEMINI_WEB_CLIENT = 'ai-photo-editor-gemini-web';
-const WEB_IMAGE_BRIDGE_BUILD = '2026-11-05.1';
+const WEB_IMAGE_BRIDGE_BUILD = '2026-11-06.1';
 const WEB_IMAGE_PENDING = new Map();
 document.addEventListener('REQUEST_IANTO_WEB_MODELS', function(event) {
     const detail = event.detail || {};
@@ -232,6 +232,12 @@ document.addEventListener('REQUEST_GEMINI_WEB_IMAGE', function(event) {
             uploadMode: detail.uploadMode,
             materialKey: detail.materialKey,
             materialRules: detail.materialRules,
+            materialOnly: !!detail.materialOnly,
+            materialIndex: detail.materialIndex,
+            materialCount: detail.materialCount,
+            materialRole: detail.materialRole,
+            materialManifest: detail.materialManifest,
+            materialFinalRules: !!detail.materialFinalRules,
             provider: detail.provider,
             siteModel: detail.siteModel,
             modelOptions: detail.modelOptions,

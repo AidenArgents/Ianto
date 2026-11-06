@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const WORKER_BUILD = '2026-11-05.1';
+  const WORKER_BUILD = '2026-11-06.1';
   const PROTOCOL_VERSION = 2;
 
   if (globalThis.__iantoChatGPTImageWorkerLoaded) return;
@@ -570,6 +570,7 @@
           if (!await submitPrompt(box, text, before)) throw new Error('[MATERIAL_SETUP] ChatGPT 未确认素材登记消息，请检查原会话');
         }
       });
+      if (job.materialOnly) return { success: true, materialRegistered: true, conversationUrl: location.href };
       textbox = await waitFor(findTextbox, 30000, 250);
     }
     clearComposer(textbox);
