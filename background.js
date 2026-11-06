@@ -3,6 +3,7 @@
 importScripts('features/video_contract.js', 'features/video_background.js');
 importScripts('features/lingxing_erp.js');
 importScripts('features/wms_puller_background.js');
+importScripts('features/us_review_scraper.js');
 // Market capture is isolated so a setup error cannot disable existing tools.
 try { importScripts('market_capture/background.js'); } catch (error) { console.warn('[Ianto 市场采集]', error); }
 
@@ -189,6 +190,8 @@ const scraperFunction = async () => {
         'shopdora.com': ['div.title-info > div.title'],
         'lingdongsz.com': ['h3.title-wrapper a.title'],
         'amazon.': ['div[data-cy="title-recipe"] h2 span'],
+        'walmart.com': ['[data-automation-id="product-title"]', '[data-testid="product-title"]', 'h1#main-title'],
+        'ebay.com': ['h3.s-item__title', '.s-card__title', 'h1.x-item-title__mainTitle'],
         'temu.com': ['h2 > span:nth-of-type(1)'],
         'tokopedia.': ['div[class*="y-oybT3IAd310DVdH3OwVg=="] > div:nth-child(1) span[class*="=="]']
     };
@@ -204,6 +207,8 @@ const scraperFunction = async () => {
           if (hostname.includes('shopdora.com')) return selectors['shopdora.com'];
           if (hostname.includes('lingdongsz.com')) return selectors['lingdongsz.com'];
           if (hostname.includes('amazon.')) return selectors['amazon.'];
+          if (hostname==='walmart.com' || hostname.endsWith('.walmart.com')) return selectors['walmart.com'];
+          if (hostname==='ebay.com' || hostname.endsWith('.ebay.com')) return selectors['ebay.com'];
           if (hostname.includes('temu.com')) return selectors['temu.com'];
           if (hostname.includes('tokopedia.')) return selectors['tokopedia.'];
           return [];
@@ -1946,7 +1951,7 @@ const amazonReviewScraperFunction = async (maxReviews) => {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     function getProductName() {
-        const el = document.querySelector('[data-hook="product-link"]');
+        const el = document.querySelector('[data-hook="product-link"], #cm_cr-product_info a, #productTitle');
         if (el) return (el.innerText || '').trim();
         return (document.title || '').split(':')[0].trim();
     }
@@ -1955,7 +1960,7 @@ const amazonReviewScraperFunction = async (maxReviews) => {
         const cards = Array.from(document.querySelectorAll('[data-hook="review"]'));
         return cards.map(card => {
             let text = '';
-            const textEl = card.querySelector('[data-hook="review-body"] span');
+            const textEl = card.querySelector('[data-hook="review-body"] span, [data-hook="review-body"]');
             if (textEl) text = (textEl.innerText || '').trim();
 
             let rating = null;
@@ -2017,7 +2022,7 @@ const amazonReviewScraperFunction = async (maxReviews) => {
             '[data-hook="show-more-button"],' +
             '.cm-cr-show-more a,' +
             '#cm_cr-pagination_bar a,' +
-            '.a-last a'
+            '[data-hook="pagination-bar-next-button"], .a-last a'
         );
         if (showMoreBtn) {
             showMoreBtn.scrollIntoView({ behavior: 'instant', block: 'center' });
@@ -3107,9 +3112,11 @@ const mercadolibreReviewScraperFunction = async (maxReviews) => {
     };
 };
 
-// 根据 URL 判断平台，返回对应的评论抓取函数
+// Route VOC by actual marketplace host. Unknown hosts must not fall through to Shopee.
 function getScraperForUrl(url) {
-    const host = (new URL(url)).hostname.toLowerCase();
+    const host = new URL(url).hostname.toLowerCase();
+    const matches = domain => host===domain || host.endsWith('.'+domain);
+    if (matches('walmart.com') || matches('ebay.com')) return globalThis.IantoUsReviewScraper;
     if (host.includes('tiktok') || host.includes('tiktokglobalshop')) return tiktokReviewScraperFunction;
     if (host.includes('lazada')) return lazadaReviewScraperFunction;
     if (host.includes('tokopedia')) return tokopediaReviewScraperFunction;
@@ -3117,7 +3124,8 @@ function getScraperForUrl(url) {
     if (host.includes('aliexpress')) return aliexpressReviewScraperFunction;
     if (host.includes('mercadolibre') || host.includes('mercadolivre')) return mercadolibreReviewScraperFunction;
     if (host.includes('temu')) return temuReviewScraperFunction;
-    return shopeeReviewScraperFunction; // 默认 Shopee
+    if (host.includes('shopee')) return shopeeReviewScraperFunction;
+    return null;
 }
 
 // 监听 scrapeReviews 通道（独立 listener，不影响其他通道）
@@ -3214,46 +3222,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     await waitTabComplete(tab.id, 30000);
                     await new Promise(r => setTimeout(r, 4500)); // SPA 渲染缓冲
 
-                    // 根据 URL 域名选择对应平台的抓取函数
+                    // Follow only explicit product-review pages; preserve reviews gathered before each navigation.
                     const scraperFunc = getScraperForUrl(task.url);
-                    let res = await chrome.scripting.executeScript({
-                        target: { tabId: tab.id },
-                        func: scraperFunc,
-                        args: [task.max || 200]
-                    });
-                    
-                    let out = res?.[0]?.result || { productName: '', reviews: [] };
-                    const firstRunProductName = out.productName; // 显式暂存第一步抓到的商品名
-                    
-                    // 如果 scraper 请求跳转到独立评论页（针对 Mercado Libre 等）
-                    if (out && out.navigateTo) {
-                        console.log("正在执行跳转抓取:", out.navigateTo);
-                        await chrome.tabs.update(tab.id, { url: out.navigateTo });
-                        await waitTabComplete(tab.id, 30000);
-                        await new Promise(r => setTimeout(r, 4000));
-                        
-                        // 在新页面重新执行抓取
-                        res = await chrome.scripting.executeScript({
-                            target: { tabId: tab.id },
-                            func: scraperFunc,
-                            args: [task.max || 200]
+                    if (!scraperFunc) throw Error('VOC 暂不支持该平台的商品评论抓取');
+                    const limit = Math.max(1, Math.min(1000, Number(task.max) || 200));
+                    const reviews = [], seenReviews = new Set(), visited = new Set([new URL(targetUrl).href]);
+                    let out = {productName:'',reviews:[]}, productName = '', hops = 0;
+                    for (let pass = 0; pass < 40; pass++) {
+                        const res = await chrome.scripting.executeScript({
+                            target: { tabId: tab.id }, func: scraperFunc, args: [Math.max(1, limit - reviews.length)]
                         });
-                        out = res?.[0]?.result || { productName: '', reviews: [] };
-                        
-                        // 核心修正：如果第一步抓到了名字，强制使用第一步的名字
-                        // 因为跳转后的页面标题往往是通用的 "Opiniones del producto"
-                        const genericTitles = ['opiniones del producto', 'opiniões do produto', 'comentários do produto'];
-                        const secondName = (out.productName || '').toLowerCase().trim();
-                        
-                        if (firstRunProductName && firstRunProductName.trim() !== '') {
-                            out.productName = firstRunProductName;
-                        } else if (genericTitles.includes(secondName)) {
-                            // 如果第一步没抓到，且第二步抓到的是通用名，则留空（由后面处理）
-                            out.productName = '';
+                        out = res?.[0]?.result || {productName:'',reviews:[]};
+                        if (out.productName && (!productName || !/^(?:product reviews|opiniones del producto|opiniões do produto)$/i.test(out.productName.trim()))) {
+                            productName = out.productName;
                         }
+                        for (const review of out.reviews || []) {
+                            const key = [review.text||'',review.rating??'',review.date||'',review.author||''].join('|');
+                            if (seenReviews.has(key)) continue;
+                            seenReviews.add(key); reviews.push(review);
+                            if (reviews.length>=limit) break;
+                        }
+                        if (!out.navigateTo || reviews.length>=limit) break;
+                        const nextUrl = new URL(out.navigateTo, targetUrl);
+                        const initial = new URL(task.url), initialHost = initial.hostname.toLowerCase(), nextHost = nextUrl.hostname.toLowerCase();
+                        const marketplace = initialHost.replace(/^www\./,'').split('.').slice(-2).join('.');
+                        if (!['http:','https:'].includes(nextUrl.protocol) ||
+                            !(nextHost===marketplace || nextHost.endsWith('.'+marketplace))) {
+                            out.debug = {...out.debug, navigationWarning:'已拒绝跳转到其他平台'};
+                            break;
+                        }
+                        if (visited.has(nextUrl.href)) break;
+                        visited.add(nextUrl.href);hops++;
+                        targetUrl = nextUrl.href;
+                        await chrome.tabs.update(tab.id, { url: targetUrl });
+                        await waitTabComplete(tab.id, 30000);
+                        await new Promise(r=>setTimeout(r,3500));
                     }
-                    
-                    results[task.url] = out;
+                    results[task.url] = {...out, productName:productName || out.productName || '',
+                        reviews:reviews.slice(0,limit), debug:{...out.debug, navigations:hops, actualReturned:reviews.length}};
+
                 } catch (e) {
                     results[task.url] = { productName: '', reviews: [], error: e.message };
                 }
