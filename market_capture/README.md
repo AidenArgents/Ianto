@@ -41,10 +41,11 @@
 
 ## 国家与平台
 
-批量搜索的 8 个国家、42 组国家与平台组合均接入搜索背景、搜索页整理和详情页收录。
+批量搜索覆盖 9 个国家、45 组国家与平台组合。通过 Ianto 发起搜索时，先保存国家、原始关键词和调研归属，再打开页面；商品页采集沿用该上下文。美国站支持 Walmart、Amazon、eBay。
 
 | 国家 | 平台与数据来源 |
 |---|---|
+| 美国 US | Walmart、Amazon、eBay |
 | 巴西 BR | Mercado Livre、Amazon、Shopee、AliExpress、OLX、FastMoss、Echotik |
 | 墨西哥 MX | Mercado Libre、Amazon、AliExpress、Temu、FastMoss、Echotik |
 | 印度尼西亚 ID | Shopee、Tokopedia、Blibli、Lazada、FastMoss、Echotik |
@@ -55,6 +56,13 @@
 | 新加坡 SG | Shopee、Carousell、Amazon、Lazada、FastMoss、Echotik |
 
 FastMoss、Echotik 的销售平台记为 TikTok Shop，数据来源分别保存。国家优先读取页面实际展示的国家和明确的页面参数；全球站点没有显示国家时，使用本次 Ianto 搜索选择的国家，独立采集且无法确定时留空。搜索页点击商品进入详情时，沿用该商品的来源搜索背景；不会用 Ianto 原始输入词冒充页面实际搜索词。
+
+## 美国站与 VOC
+
+- Walmart、Amazon、eBay 的搜索页可点「整理」，详情页可点「收录」；商品字段继续使用现有飞书表头。eBay 按商品 listing ID 识别，拍卖出价、价格区间不冒充已成交单价。
+- VOC 继续使用现有 `REQUEST_REVIEW_SCRAPE` 桥接协议。Walmart 可从商品页跳转到独立评论页；eBay 只采集商品评价，不将卖家 Feedback 当成商品评价；Amazon 沿用评论页流程。
+- 评论数量受页面加载、登录和验证状态限制；未读取到评论会保留为空和诊断提示，不伪造数据，也不绕过平台验证。
+- 商品整理不自动跨搜索结果页；VOC 仅在确认有评论分页时继续加载。
 
 ## 运行口径
 

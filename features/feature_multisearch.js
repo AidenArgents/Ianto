@@ -103,45 +103,54 @@ const keywordInput = document.getElementById('multisearch_keyword');
         searchStatus.textContent = `准备打开 ${keywords.length * selected.length} 个搜索页面…`;
         document.getElementById('workflow-popup-status').textContent = '';
         try {
-            const failures = [];
+            const failures = [], attributionFailures = [];
             const total = keywords.length * selected.length;
             let opened = 0;
+            const hasWorkflow = Boolean(document.getElementById('multisearch-round'));
+            let roundId = document.getElementById('multisearch-round')?.value || '';
+            let productId = document.getElementById('multisearch-product')?.value || '';
+            const researchId = crypto.randomUUID();
             for (const keyword of keywords) {
+                let assignedRound = '', assignedProduct = '';
+                if (hasWorkflow) {
+                    try {
+                        const reply = await chrome.runtime.sendMessage({
+                            namespace: 'iantoMarket', type: 'workflowLaunch',
+                            input: { roundId, productId, name: topic, productName: topic, word: keyword }
+                        });
+                        if (!reply?.ok || !reply.assignment?.roundId) throw Error(reply?.error || '调研归属未保存');
+                        roundId = reply.assignment.roundId;
+                        productId = reply.assignment.productGroupId || '';
+                        assignedRound = roundId;
+                        assignedProduct = productId;
+                    } catch (error) {
+                        attributionFailures.push(keyword + '：' + (error?.message || String(error)));
+                        // Continue searching, but never silently attach a failed keyword to another product group.
+                    }
+                }
                 for (const platform of selected) {
                     try {
                         const url = globalThis.IantoSearchPlatforms.buildUrl(platform, keyword);
-                        // Await each tab so keywords and websites open in the visible list order.
-                        await chrome.tabs.create({ url, active: false });
+                        // Capture the source context before the result-page tab starts navigating.
+                        const result = await chrome.runtime.sendMessage({
+                            namespace: 'iantoMarket', type: 'openSearch', url,
+                            research: {
+                                researchId, country: selectedCountryCode, originalQuery: keyword,
+                                topic, roundId: assignedRound, productGroupId: assignedProduct
+                            }
+                        });
+                        if (!result?.ok || !result.opened) throw Error(result?.error || '调研搜索页未能打开');
                         opened++;
                     } catch (error) {
-                        failures.push(`${keyword} / ${platform.name}: ${error.message}`);
+                        failures.push(keyword + ' / ' + platform.name + ': ' + (error?.message || String(error)));
                     }
-                    searchStatus.textContent = `正在打开 ${opened + failures.length}/${total} 个搜索页面…`;
+                    searchStatus.textContent = '正在打开 ' + (opened + failures.length) + '/' + total + ' 个搜索页面…';
                 }
             }
-            searchStatus.textContent = `已完成 ${opened}/${total} 个搜索页面，关键词 ${keywords.length} 个。`;
-
-            // Search tabs come first so a slow or unavailable workflow service cannot block the main action.
-            if(document.getElementById('multisearch-round')){
-                const roundSelect = document.getElementById('multisearch-round');
-                const productSelect = document.getElementById('multisearch-product');
-                let roundId = roundSelect.value;
-                let productId = productSelect.value;
-                for (const keyword of keywords) {
-                    try {
-                        const assigned = await chrome.runtime.sendMessage({
-                            namespace: 'iantoMarket',
-                            type: 'workflowLaunch',
-                            input: { roundId, productId, name: topic, productName: topic, word: keyword }
-                        });
-                        if (!assigned?.ok) throw Error(assigned?.error || '调研归属未保存');
-                        roundId = assigned.assignment?.roundId || roundId;
-                        productId = assigned.assignment?.productGroupId || productId;
-                    } catch (error) {
-                        document.getElementById('workflow-popup-status').textContent = '搜索页面已打开；部分关键词的调研归属未保存，可在采集后选择：' + error.message;
-                        break;
-                    }
-                }
+            searchStatus.textContent = '已完成 ' + opened + '/' + total + ' 个搜索页面，关键词 ' + keywords.length + ' 个。';
+            if (attributionFailures.length) {
+                document.getElementById('workflow-popup-status').textContent =
+                    '搜索页已打开；以下关键词未能自动归入调研，可在采集后手动选择：' + attributionFailures.join('；');
             }
             if (failures.length) {
                 const detail = failures.slice(0, 10).join('\n');

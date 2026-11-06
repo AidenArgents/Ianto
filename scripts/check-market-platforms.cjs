@@ -4,14 +4,16 @@ const {chromium}=require(process.argv[2]||'playwright');
 const base=path.resolve(__dirname,'..'),registry=require('../features/multisearch_platforms.js'),core=require('../market_capture/core.js');
 const word='Mini Café & Fan + TEST';
 const cases=Object.entries(registry.countries).flatMap(([country,value])=>value.platforms.map(platform=>({country,platform,url:registry.buildUrl(platform,word)})));
-const prices={BR:'R$ 129,90',MX:'MX$129.90',ID:'Rp129.900',PH:'₱129.90',MY:'RM 129.90',VN:'129.900 ₫',TH:'฿129.90',SG:'S$129.90'};
+const prices={US:'US$129.90',BR:'R$ 129,90',MX:'MX$129.90',ID:'Rp129.900',PH:'₱129.90',MY:'RM 129.90',VN:'129.900 ₫',TH:'฿129.90',SG:'S$129.90'};
 function product(url,n){const u=new URL(url),family=core.siteFor(url).family,host=family==='mercado'?'https://www.'+(u.hostname.includes('.br')?'mercadolivre.com.br':'mercadolibre.com.mx'):u.origin;
-  return host+({amazon:'/dp/B'+String(n).padStart(9,'0'),mercado:(host.includes('.br')?'/MLB-':'/MLM-')+(1234567800+n)+'-fan-_JM',shopee:'/Fan-i.12345.'+(67890+n),lazada:'/fan-i'+(123450+n)+'-s98765.html',fastmoss:'/zh/e-commerce/detail/'+(1736800972002067800n+BigInt(n)),echotik:'/products/'+(1736800972002067800n+BigInt(n)),aliexpress:'/item/'+(1005000000000+n)+'.html',tokopedia:'/fixture-shop/fan-'+n,temu:'/fan-g-'+(6010000000000+n)+'.html',olx:'/fixture-fan-'+(1234567800+n),blibli:'/p/fan-'+n+'/ps--FAN-12345-0000'+n,mudah:'/fan-'+(116078890+n)+'.htm',carousell:'/p/fan-'+(1460662700+n)+'/'}[family]);
+  return host+({walmart:'/ip/fixture-fan/'+(100000000+n),ebay:'/itm/fixture-fan/'+(100000000000+n),amazon:'/dp/B'+String(n).padStart(9,'0'),mercado:(host.includes('.br')?'/MLB-':'/MLM-')+(1234567800+n)+'-fan-_JM',shopee:'/Fan-i.12345.'+(67890+n),lazada:'/fan-i'+(123450+n)+'-s98765.html',fastmoss:'/zh/e-commerce/detail/'+(1736800972002067800n+BigInt(n)),echotik:'/products/'+(1736800972002067800n+BigInt(n)),aliexpress:'/item/'+(1005000000000+n)+'.html',tokopedia:'/fixture-shop/fan-'+n,temu:'/fan-g-'+(6010000000000+n)+'.html',olx:'/fixture-fan-'+(1234567800+n),blibli:'/p/fan-'+n+'/ps--FAN-12345-0000'+n,mudah:'/fan-'+(116078890+n)+'.htm',carousell:'/p/fan-'+(1460662700+n)+'/'}[family]);
 }
 function card(family,url,country,n){
   const href=product(url,n),title='Fixture Café Fan '+n,price=prices[country],image=`<img alt="${title}" data-src="https://images.example.test/fan-${n}.jpg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">`;
   const link=`<a href="${href}">${image}<h2>${title}</h2></a>`;
   switch(family){
+    case'walmart':return `<div class="card" data-testid="product-tile"><a href="${href}">${image}<span data-automation-id="product-title">${title}</span></a><div data-automation-id="product-price">${price}</div></div>`;
+    case'ebay':return `<li class="card s-item"><a class="s-item__link" href="${href}">${image}<h3 class="s-item__title">${title}</h3></a><span class="s-item__price">${price}</span></li>`;
     case'amazon':return `<div class="card" data-component-type="s-search-result" data-asin="B${String(n).padStart(9,'0')}"><h2><a href="${href}"><span>${title}</span></a></h2>${image}<div class="a-price"><span class="a-offscreen">${price}</span></div></div>`;
     case'mercado':return `<li class="card ui-search-layout__item"><a class="poly-component__title" href="${href}">${title}</a>${image}<span class="poly-price__current"><span class="andes-money-amount">${price}</span></span></li>`;
     case'shopee':return `<li class="card shopee-search-item-result__item"><a data-sqe="link" href="${href}">${image}<div data-sqe="name">${title}</div><span data-sqe="price">${price}</span></a></li>`;
@@ -29,7 +31,7 @@ function card(family,url,country,n){
   }
 }
 function searchHtml(family,url,country,lazy=false){
-  const wrappers={amazon:['<main class="s-main-slot" data-component-type="s-search-results">','</main>'],mercado:['<main><ul class="ui-search-layout">','</ul></main>'],shopee:['<main><ul class="shopee-search-item-result__items">','</ul></main>'],tokopedia:['<main data-testid="divSRPContentProducts">','</main>'],fastmoss:['<main><table><thead><tr><th>商品</th><th>所属店铺</th><th>总销量</th></tr></thead><tbody class="ant-table-tbody">','</tbody></table></main>'],echotik:['<main><table><thead><tr><th>商品</th><th>价格</th><th>总销量</th></tr></thead><tbody class="ant-table-tbody">','</tbody></table></main>']};
+  const wrappers={walmart:['<main>','</main>'],ebay:['<main><ul>','</ul></main>'],amazon:['<main class="s-main-slot" data-component-type="s-search-results">','</main>'],mercado:['<main><ul class="ui-search-layout">','</ul></main>'],shopee:['<main><ul class="shopee-search-item-result__items">','</ul></main>'],tokopedia:['<main data-testid="divSRPContentProducts">','</main>'],fastmoss:['<main><table><thead><tr><th>商品</th><th>所属店铺</th><th>总销量</th></tr></thead><tbody class="ant-table-tbody">','</tbody></table></main>'],echotik:['<main><table><thead><tr><th>商品</th><th>价格</th><th>总销量</th></tr></thead><tbody class="ant-table-tbody">','</tbody></table></main>']};
   const [start,end]=wrappers[family]||['<main>','</main>'];
   return `<!doctype html><style>body{margin:0}.card{display:block;height:260px;border:1px solid #ccc;box-sizing:border-box}.card img{width:20px;height:20px}header{height:40px}</style><header><div data-testid="country-selector">${country}</div></header>${start}${card(family,url,country,1)}${card(family,url,country,2)}${lazy?'':card(family,url,country,3)}${end}${lazy?`<script>let done=false;window.addEventListener('scroll',()=>{if(!done&&scrollY+innerHeight>=document.scrollingElement.scrollHeight-40){done=true;setTimeout(()=>{const target=document.querySelector('tbody')||document.querySelector('main ul')||document.querySelector('main');target.insertAdjacentHTML('beforeend',${JSON.stringify(card(family,url,country,3))});},20);}});</script>`:''}`;
 }
@@ -52,14 +54,14 @@ function searchHtml(family,url,country,lazy=false){
       const detailRow=await page.evaluate(country=>IantoMarketCore.detailFields(document,location.href,country),country);
       assert.equal(detailRow.title,'Fixture Detail Fan',label+' detail title');assert.equal(detailRow.country,country,label+' detail country');assert.equal(detailRow.price,129.9,label+' detail price');assert.equal(detailRow.image,'https://images.example.test/detail.jpg',label+' detail image');
     }
-    console.log('PASS: 42 country/platform search and detail DOM fixtures');
+    console.log('PASS: 45 country/platform search and detail DOM fixtures');
     const families=new Set();
     for(const {country,url} of cases){const family=core.siteFor(url).family;if(families.has(family))continue;families.add(family);
       await open(url,searchHtml(family,url,country,true));
       const loaded=await page.evaluate(async country=>{const result=await IantoMarketSearch.collect({country,stepDelay:5,quietTime:80,maxDuration:3000,loadingTimeout:1000});return {complete:result.complete,count:result.cards.length,countries:result.cards.map(c=>c.fields.country)};},country);
       assert.equal(loaded.complete,true,family+' lazy completion');assert.equal(loaded.count,3,family+' lazy load');assert.ok(loaded.countries.every(code=>code===country));
     }
-    console.log('PASS: all 13 platform families load appended products');
+    console.log('PASS: all 15 platform families load appended products');
     // Test the four adapters against unlabelled cards as well as their direct selectors.
     for(const family of ['olx','blibli','mudah','carousell']){
       const sample=cases.find(c=>core.siteFor(c.url).family===family),url=sample.url;
@@ -76,11 +78,11 @@ function searchHtml(family,url,country,lazy=false){
       const stored={multisearch_lastKeyword:'Saved word',multisearch_lastCountryCode:'MX',multisearch_platformSelection_MX:{ml_mx:false}};
       window.fixtureMessages=[];window.fixtureAlerts=[];window.fixtureStore=stored;window.fixtureDelayed=false;window.fixtureCallbacks=[];
       window.alert=message=>fixtureAlerts.push(message);
-      window.chrome={storage:{local:{get(keys,callback){const result=Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(key=>[key,stored[key]]));if(window.fixtureDelayed&&typeof keys==='string')fixtureCallbacks.push(()=>callback(result));else queueMicrotask(()=>callback(result));},set(values){Object.assign(stored,values);}}},runtime:{sendMessage:async message=>{fixtureMessages.push(message);return {ok:true,opened:true};}}};
+      window.chrome={storage:{local:{get(keys,callback){const result=Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(key=>[key,stored[key]]));if(window.fixtureDelayed&&typeof keys==='string')fixtureCallbacks.push(()=>callback(result));else queueMicrotask(()=>callback(result));},set(values){Object.assign(stored,values);}}},runtime:{sendMessage:async message=>{fixtureMessages.push(message);if(message.type==='workflowLaunch')return {ok:true,assignment:{roundId:'fixture-round',productGroupId:'fixture-product'}};if(message.type==='workflowChoices')return {ok:true,workflow:{target:'fixture',rounds:[]}};return {ok:true,opened:true};}}};
     });
     for(const file of ['features/multisearch_platforms.js','features/feature_multisearch.js','market_capture/popup.js'])await page.addScriptTag({content:fs.readFileSync(path.join(base,file),'utf8')});
     await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));
-    assert.equal(await page.locator('#multisearch_country_select option').count(),8);assert.equal(await page.locator('#multisearch_keyword').inputValue(),'Saved word');assert.equal(await page.locator('#ml_mx').isChecked(),false);
+    assert.equal(await page.locator('#multisearch_country_select option').count(),9);assert.equal(await page.locator('#multisearch_keyword').inputValue(),'Saved word');assert.equal(await page.locator('#ml_mx').isChecked(),false);
     for(const [country,group] of Object.entries(registry.countries)){
       await page.locator('#multisearch_country_select').selectOption(country);
       assert.equal(await page.locator('#multisearch_platform_list input').count(),group.platforms.length);
@@ -88,7 +90,7 @@ function searchHtml(family,url,country,lazy=false){
       await page.locator('#multisearch_keyword').fill(word);await page.locator('#multisearch_research_topic').fill('Shared research');
       const before=await page.evaluate(()=>fixtureMessages.length);await page.locator('#multisearch-button').click();
       await page.waitForFunction(()=>!document.getElementById('multisearch-button').disabled);
-      const requests=await page.evaluate(before=>fixtureMessages.slice(before),before);
+      const requests=await page.evaluate(before=>fixtureMessages.slice(before).filter(r=>r.type==='openSearch'),before);
       assert.equal(requests.length,group.platforms.length);assert.ok(requests.every(r=>r.type==='openSearch'&&r.research.country===country&&r.research.originalQuery===word&&r.research.topic==='Shared research'));
       assert.equal(new Set(requests.map(r=>r.research.researchId)).size,1);
       for(let i=0;i<requests.length;i++)assert.equal(requests[i].url,registry.buildUrl(group.platforms[i],word));
@@ -101,7 +103,7 @@ function searchHtml(family,url,country,lazy=false){
     await page.evaluate(()=>{fixtureCallbacks.forEach(fn=>fn());fixtureDelayed=false;});
     assert.equal(await page.locator('#multisearch_platform_list input').count(),7);
     assert.deepEqual(await page.evaluate(()=>fixtureAlerts),[]);
-    console.log('PASS: popup renders 8 countries/42 choices, remembers selections, resets topic, and ignores stale country callbacks');
+    console.log('PASS: popup renders 9 countries/45 choices, remembers selections, resets topic, and ignores stale country callbacks');
     require('../market_capture/data.js');require('../market_capture/feishu.js');
     const {create}=require('../market_capture/direct.js'),batchId='11111111-1111-4111-a111-111111111111';
     const first={id:'22222222-2222-4222-a222-222222222222',batchId,title:'Original product title stays in CSV',country:'MX',platform:'Amazon',topic:'Ventilador de bolsillo',url:'https://www.amazon.com.mx/dp/B012345678',captureMethod:'搜索页整理',capturedAt:'2026-10-23T12:53:48.000Z'};

@@ -111,3 +111,24 @@ test('扩展更新会替换失效圆钮，已正常注入不重复执行，其�
   const host=d.createElement('div');host.id='ianto-market-capture';host.dataset.iantoMarketVersion='2.6.24';d.body.appendChild(host);
   updated(1,{status:'complete'},{url:'https://www.olx.com.br/brasil?q=molde'});await new Promise(resolve=>setTimeout(resolve,15));assert.equal(files.length,1);assert.equal(host.isConnected,true);
 });
+
+test('美国 Walmart / eBay 搜索页、详情页、分页及商品 ID 识别',()=>{
+  const walmart='https://www.walmart.com/search?q=dog+blanket';
+  const wdoc=documentFor('<div data-testid="product-tile"><a href="/ip/cozy-dog-blanket/123456789"><img src="https://img.example.test/blanket.jpg"><span data-automation-id="product-title">Cozy Dog Blanket</span></a><div data-automation-id="product-price">$19.97</div></div>');
+  const w=core.readCards(wdoc,walmart,{country:'US'});
+  assert.equal(w.length,1);assert.equal(w[0].fields.productId,'123456789');
+  assert.equal(w[0].fields.title,'Cozy Dog Blanket');assert.equal(w[0].fields.price,19.97);assert.equal(w[0].fields.currency,'USD');
+  assert.equal(core.readSearch(wdoc,walmart).query,'dog blanket');
+  const ebay='https://www.ebay.com/sch/i.html?_nkw=dog+blanket&_pgn=2';
+  const edoc=documentFor('<ul><li class="s-item"><a class="s-item__link" href="/itm/cozy-dog-blanket/123456789012"><h3 class="s-item__title">Dog Blanket on eBay</h3><img src="https://img.example.test/ebay.jpg"></a><span class="s-item__price">US $18.50</span></li></ul>');
+  const e=core.readCards(edoc,ebay,{country:'US'});
+  assert.equal(e.length,1);assert.equal(e[0].fields.productId,'123456789012');
+  assert.equal(e[0].fields.price,18.5);assert.equal(e[0].fields.currency,'USD');
+  assert.equal(core.readSearch(edoc,ebay).page,2);
+  const range=documentFor('<h1>Dog Blanket</h1><div class="x-price-primary">US $18.50 to US $28.50</div>');
+  assert.equal(core.detailFields(range,'https://www.ebay.com/itm/123456789012').price,null);
+  assert.equal(core.productIdentity('https://www.ebay.com/sch/i.html?_nkw=dog'),null);
+  assert.equal(core.productIdentity('https://www.walmart.com/search?q=dog'),null);
+  assert.equal(core.siteFor('https://www.walmart.com/search?q=dog').country,'US');
+  assert.equal(core.siteFor('https://www.ebay.com/sch/i.html?_nkw=dog').country,'US');
+});
