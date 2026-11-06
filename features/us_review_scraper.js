@@ -36,9 +36,12 @@
       }catch{return null;}
     }
     if(!reviewPage){
+      const listingId=walmart?location.pathname.match(/^\/ip\/(?:[^/?#]+\/)?(\d{6,})\/?$/i)?.[1]:'';
       for(const link of document.querySelectorAll('a[href]')){
         const target=sameMarketplace(link.getAttribute('href'));
         if(target&&target.href!==location.href) {
+          // Walmart recommendations may have their own review links: never switch to another product.
+          if(walmart&&listingId&&target.pathname.match(/\/reviews\/product\/(\d+)/i)?.[1]!==listingId)continue;
           return {productName,reviews:[],navigateTo:target.href,debug:{platform,kind:'product-review-link'}};
         }
       }

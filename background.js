@@ -3245,7 +3245,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         if (!out.navigateTo || reviews.length>=limit) break;
                         const nextUrl = new URL(out.navigateTo, targetUrl);
                         const initial = new URL(task.url), initialHost = initial.hostname.toLowerCase(), nextHost = nextUrl.hostname.toLowerCase();
-                        const marketplace = initialHost.replace(/^www\./,'').split('.').slice(-2).join('.');
+                        const marketplace = initialHost.replace(/^(?:www|lista|listado|m)\./,'');
                         if (!['http:','https:'].includes(nextUrl.protocol) ||
                             !(nextHost===marketplace || nextHost.endsWith('.'+marketplace))) {
                             out.debug = {...out.debug, navigationWarning:'已拒绝跳转到其他平台'};
