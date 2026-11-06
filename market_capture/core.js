@@ -70,6 +70,8 @@
     if (!['https:','http:'].includes(u.protocol)) return null;
     const countries = { 'com.br':'BR','com.mx':'MX','co.id':'ID','com.my':'MY','com.ph':'PH','co.th':'TH','com.vn':'VN','vn':'VN','ph':'PH','sg':'SG','com':'US' };
     const country = Object.entries(countries).find(([suffix])=>h.endsWith('.'+suffix))?.[1] || '';
+    if (ends(h,'walmart.com')) return { family:'walmart',platform:'Walmart',source:'Walmart',country:'US' };
+    if (ends(h,'ebay.com')) return { family:'ebay',platform:'eBay',source:'eBay',country:'US' };
     if (['amazon.com.br','amazon.com.mx','amazon.sg','amazon.com'].some(d=>ends(h,d))) return { family:'amazon',platform:'Amazon',source:'Amazon',country };
     if (ends(h,'mercadolibre.com.mx')||ends(h,'listado.mercadolibre.com.mx')) return { family:'mercado',platform:'Mercado Libre',source:'Mercado Libre',country:'MX' };
     if (ends(h,'mercadolivre.com.br')) return { family:'mercado',platform:'Mercado Libre',source:'Mercado Livre',country:'BR' };
@@ -101,6 +103,12 @@
         const nested = u.searchParams.get(key); if (nested) { const result=productIdentity(nested,u.origin,depth+1); if(result?.family==='amazon')return result; }
       }
       if(m) { id=m[1].toUpperCase();canonical=u.origin+'/dp/'+id; }
+    } else if (site.family==='walmart') {
+      m=u.pathname.match(/^\/ip\/(?:[^/?#]+\/)?(\d{6,})\/?$/i);
+      if(m){id=m[1];canonical='https://www.walmart.com/ip/'+id;}
+    } else if (site.family==='ebay') {
+      m=u.pathname.match(/^\/itm\/(?:[^/?#]+\/)?(\d{9,15})\/?$/i);
+      if(m){id=m[1];canonical='https://www.ebay.com/itm/'+id;}
     } else if (site.family==='mercado') {
       if (/^(lista|listado|busca|categorias?)\./.test(u.hostname)) return null;
       m=u.pathname.match(/(MLM|MLB)(U?)-?(\d{6,})/i);if(m)id=m[1].toUpperCase()+m[2].toUpperCase()+m[3];
@@ -122,6 +130,30 @@
     return {...site,productId:id,key:site.family+':'+u.hostname.replace(/^www\./,'')+':'+id,url:canonical};
   }
   const CONFIG = {
+    walmart: {
+      cards:'[data-testid="item-card"], [data-testid="product-card"], [data-testid="product-tile"], [data-automation-id="product-tile"], [data-item-id]',
+      links:['a[href*="/ip/"]'],
+      title:['h1#main-title', 'h1[data-testid="product-title"]', '[data-automation-id="product-title"]', '[data-testid="product-title"]', 'h2', 'h3'],
+      price:['[data-automation-id="product-price"] [itemprop="price"]', '[data-automation-id="product-price"]', '[data-testid="price-wrap"] [itemprop="price"]', '[data-testid="price-wrap"]', '[itemprop="price"]'],
+      rating:['[data-testid="rating-stars"] [aria-label]', '[data-testid="rating-stars"]', '[data-automation-id="product-rating"]', '[itemprop="ratingValue"]'],
+      reviews:['[data-testid="reviews-and-ratings"]', '[data-testid="reviews-count"]', '[data-automation-id="reviews-count"]', '[itemprop="reviewCount"]'],
+      sales:['[data-testid="sold-count"]', '[data-automation-id="sales-volume"]'],
+      shop:['[data-testid="seller-name"]', '[data-testid="seller-info"]', '[data-automation-id="seller-name"]'],
+      query:[],param:['q'],sort:['[data-testid="sort-by"] option:checked', '[data-testid="sort-by"]'],filters:'input[type="checkbox"]:checked',page:['[aria-current="page"]'],
+      fallbackCards:true
+    },
+    ebay: {
+      cards:'li.s-item, .s-card, .su-card-container, [data-testid="item-card"]',
+      links:['a.s-item__link', 'a.s-card__link', 'a[href*="/itm/"]'],
+      title:['h1.x-item-title__mainTitle', 'h1[itemprop="name"]', 'h1', '.s-item__title', '.s-card__title', '.su-card-container__title'],
+      price:['.x-price-primary [itemprop="price"]', '.x-price-primary', '.s-item__price', '.s-card__price', '[itemprop="price"]'],
+      rating:['.x-star-rating [aria-label]', '.s-item__reviews [aria-label]', '[itemprop="ratingValue"]'],
+      reviews:['.s-item__reviews-count', '.x-review-section__reviews-count', '[itemprop="reviewCount"]'],
+      sales:['.s-item__hotness', '.x-quantity__availability'],
+      shop:['.x-sellercard-atf__info__about-seller', '.s-item__seller-info-text', '[itemprop="seller"]'],
+      query:[],param:['_nkw'],sort:['select[name="_sop"] option:checked'],filters:'input[type="checkbox"]:checked',page:['[aria-current="page"]'],
+      fallbackCards:true
+    },
     amazon: {cards:'[data-component-type="s-search-results"] [data-component-type="s-search-result"][data-asin], .s-main-slot > [data-component-type="s-search-result"][data-asin]',links:['h2 a','a.a-link-normal.s-no-outline','a[href*="/dp/"]'],title:['#productTitle','h2 span','h2'],price:['#corePrice_feature_div .a-price .a-offscreen','#corePriceDisplay_desktop_feature_div .a-price .a-offscreen','.a-price .a-offscreen'],rating:['#acrPopover .a-icon-alt','.a-icon-alt'],reviews:['#acrCustomerReviewText','a[href*="customerReviews"][aria-label]','a[href*="customerReviews"] span'],sales:['#social-proofing-faceout-title-tk_bought .a-text-bold','[data-cy="reviews-block"] .a-color-secondary','.a-row.a-size-base .a-color-secondary'],shop:['#sellerProfileTriggerId','#merchant-info','#bylineInfo'],query:['[data-component-type="s-result-info-bar"] .a-color-state'],param:['k'],sort:['#s-result-sort-select option:checked','.a-dropdown-prompt'],filters:'.s-refinements .a-checkbox input:checked',page:['.s-pagination-selected']},
     mercado: {cards:'.ui-search-results > .ui-search-layout__item, .ui-search-layout > .ui-search-layout__item',links:['a.poly-component__title','a.ui-search-link','a.ui-search-item__group__element'],title:['h1.ui-pdp-title','.poly-component__title','.ui-search-item__title'],price:['.ui-pdp-price__second-line .andes-money-amount','.poly-price__current .andes-money-amount','.ui-search-price__second-line .andes-money-amount'],rating:['.ui-pdp-review__rating','.poly-component__review-compacted','.poly-reviews__rating','.poly-reviews__rating-number'],reviews:['.ui-pdp-review__amount','.poly-reviews__total'],sales:['.ui-pdp-subtitle','.poly-component__sales','.poly-reviews__total-sold'],shop:['.ui-pdp-seller__link-trigger','.poly-component__seller'],query:['h1.ui-search-breadcrumb__title'],param:['q'],sort:['.ui-search-sort-filter .andes-dropdown__display-values'],filters:'.ui-search-filters-breadcrumb__item, button[aria-label^="Quitar el filtro"], button[aria-label^="Remover filtro"]',page:['.andes-pagination__button--current']},
     shopee: {cards:'.shopee-search-item-result__items > .shopee-search-item-result__item, .shopee-search-item-result > .shopee-search-item-result__item, li.shopee-search-item-result__item',links:['a[data-sqe="link"]','a[href*="-i."]','a[href*="/product/"]'],title:['[data-sqe="name"]','h1','.line-clamp-2','[class*="line-clamp-2"]'],price:['[data-sqe="price"]','[class*="product-price"]','[class*="flex"] [class*="text-base/5"]'],rating:['[data-sqe="rating"]','[aria-label*="rating"]'],reviews:['[data-sqe="reviews"]'],sales:['[data-sqe="sold"]','[class*="truncate text-shopee-black87"]'],shop:['[data-sqe="shop"]'],query:['.shopee-search-result-header__text-highlight'],param:['keyword'],sort:['.shopee-sort-bar__option--selected','.select-with-status__holder'],filters:'.shopee-filter [aria-checked="true"]',page:['.shopee-mini-page-controller__current']},
@@ -165,7 +197,7 @@
     }
     let page=Number(first(doc,c.page).match(/\d+/)?.[0])||null;
     if(!page){
-      const p=u.searchParams.get('page');
+      const p=u.searchParams.get('page')||(site.family==='ebay'?u.searchParams.get('_pgn'):null);
       if(p!==null&&/^\d+$/.test(p))page=Number(p)+(site.family==='shopee'?1:0)||null;
       // An offset alone does not reveal the page size. Keep the page unknown.
       else if(query&&!/_Desde_\d+/i.test(u.pathname)&&!['offset','start','from'].some(k=>u.searchParams.has(k)))page=1;
@@ -203,7 +235,7 @@
   function imageOf(root,detail,ld){
     let value=detail?(Array.isArray(ld?.image)?ld.image[0]:typeof ld?.image==='object'?ld.image.url:ld?.image):'';
     if(value)return value;
-    const selectors=detail?['#landingImage','.ui-pdp-gallery__figure img','#icImg','img[itemprop="image"]','[data-testid="product-image"] img','[data-testid="listing-image"] img','meta[property="og:image"]']:['img[data-js-main-img]','img[data-testid="imgSRPProdMain"]','img.poly-component__picture','img'];
+    const selectors=detail?['[data-testid="hero-image"]', '[data-testid="product-image"] img', '#mainImgHldr img', '#landingImage','.ui-pdp-gallery__figure img','#icImg','img[itemprop="image"]','[data-testid="product-image"] img','[data-testid="listing-image"] img','meta[property="og:image"]']:['img[data-js-main-img]','img[data-testid="imgSRPProdMain"]','img.poly-component__picture','img'];
     for(const selector of selectors)for(const image of list(root,selector)){
       if(/\/(?:regions|flags)\//i.test(image.getAttribute('src')||''))continue;
       for(const name of ['data-old-hires','data-original','data-src','src','content']){const url=image.getAttribute(name);if(url&&!/^(?:data:|blob:)|(?:placeholder|no[-_]image|transparent)\.(?:png|gif|svg|webp)/i.test(url))return url;}
@@ -221,6 +253,12 @@
     if(family==='Amazon'){
       data.salesText=matchedText(root,'#social-proofing-faceout-title-tk_bought, .a-row.a-size-base .a-color-secondary, [data-cy="reviews-block"]',SOLD);
       if(!data.reviewsText)data.reviewsText=matchedText(root,'a[href*="customerReviews"][aria-label]',/\d[\d.,\s]*\s*(?:clasificaciones|avaliações|ratings|reviews)/i);
+    }
+    if(family==='Walmart'||family==='eBay'){
+      const sold=matchedText(root,'[data-testid="sold-count"], .s-item__hotness, [data-automation-id="sales-volume"]',SOLD);
+      if(sold)data.salesText=sold;
+      if(!data.ratingText)data.ratingText=matchedText(root,'[data-testid="rating-stars"] [aria-label], [data-automation-id="product-rating"], .x-star-rating [aria-label]',/[0-5](?:[.,]\d+)?\s*(?:out of (?:five|5) stars|\/\s*5)/i);
+      if(!data.reviewsText)data.reviewsText=matchedText(root,'[data-testid="reviews-and-ratings"], .s-item__reviews-count',/\d[\d,.]*\s*(?:ratings|reviews)/i);
     }
     if(['Mercado Libre','Mercado Livre'].includes(family)){
       if(!detail)data.salesText=matchedText(root,'.poly-component__sales, .poly-reviews__total-sold, [class*="sold"]',SOLD);
@@ -266,7 +304,7 @@
     data.image=imageOf(root,detail,ld)||'';
     if(data.image){try{data.image=new URL(data.image,identity.url).href;if(!/^https?:/.test(data.image))data.image='';}catch{data.image='';}}
     data.shop=first(root,c.shop)||(detail?clean(offer?.seller?.name||''):'');
-    data.brand=detail?(typeof ld?.brand==='object'?clean(ld.brand.name):clean(ld?.brand))||first(root,['[itemprop="brand"]']):'';
+    data.brand=detail?(typeof ld?.brand==='object'?clean(ld.brand.name):clean(ld?.brand))||first(root,['[itemprop="brand"]', '[data-testid="brand-link"]', '[data-automation-id="brand-name"]']):'';
     data.ratingText=first(root,c.rating)||(detail?clean(ld?.aggregateRating?.ratingValue):'');
     data.reviewsText=first(root,c.reviews)||(detail?clean(ld?.aggregateRating?.reviewCount||ld?.aggregateRating?.ratingCount):'');
     data.salesText=first(root,c.sales);
@@ -283,13 +321,19 @@
     data.price=money(data.priceText);data.currency=currency(data.priceText,data.country,offer?.priceCurrency||'');
     data.variant=detail?list(root,'#twister .selection, .ui-pdp-variations__selected-label, .sku-property-item-selected, [data-sku-selected="true"]').map(e=>clean(e.textContent||e.getAttribute('aria-label'))).filter(Boolean).join('；'):'';
     data.availability=detail?first(root,['#availability','.ui-pdp-stock-information','[itemprop="availability"]'])||clean(offer?.availability):'';
-    data.shipping=detail?first(root,['#deliveryBlockMessage','.ui-pdp-shipping','.delivery-options']):'';
+    data.shipping=detail?first(root,['#deliveryBlockMessage','.ui-pdp-shipping','.delivery-options','[data-testid="fulfillment-container"]','[data-testid="shipping-section"]','.ux-labels-values--shipping']):'';
     data.attributes=detail?first(root,['#productOverview_feature_div','#productDetails_techSpec_section_1','.ui-pdp-specs__table','.pdp-product-desc']):'';
     const marker=first(root,['.puis-sponsored-label-text','.s-sponsored-label-text','.poly-component__ads-promotions','.shopee-item-card__ad-badge','[data-testid="ad-label"]']);
     const adLink=list(root,'a[href]').some(a=>/[?&](?:search_p4p_id|aem_p4p_detail)=/.test(a.getAttribute('href')||''));
     const adText=list(root,'span, div, [aria-label]').some(el=>/^(?:AD|Sponsored|Patrocinado|Patrocinada|Publicidade|Iklan)$/i.test(clean(el.getAttribute('aria-label')||el.textContent)));
     data.ad=detail?'未知':marker||adLink||adText||root.querySelector('.s-sponsored-label-info-icon, [data-sponsored="true"]')?'是':'未见广告标记';
     data.completeness=(detail?'详情页展示字段':'仅列表已展示字段；位置按已加载主结果商品卡顺序，包含广告')+(!data.priceText?'；未识别价格':'');
+    if(identity.family==='ebay' && /(?:\bto\b|\s[-–]\s|\s+至\s+)/i.test(data.priceText)){
+      data.price=null;data.completeness+='；价格区间仅保存原文，不纳入单价统计';
+    }
+    if(identity.family==='ebay' && first(root,['[data-testid="bid-count"]','.x-bid-price__label'])){
+      data.price=null;data.completeness+='；拍卖出价不是成交价';
+    }
     delete data.key;delete data.family;return data;
   }
   function cardElements(doc,value){

@@ -5,8 +5,8 @@ const emptyDoc={querySelector:()=>null,querySelectorAll:()=>[]};
 const word='Mini Café & Fan + TEST';
 const cases=Object.entries(registry.countries).flatMap(([country,value])=>value.platforms.map(platform=>({country,platform,url:registry.buildUrl(platform,word)})));
 function matches(pattern,value){const url=new URL(value),match=pattern.match(/^(\*|https?):\/\/(\*\.)?([^/]+)\/(.*)$/);return !!match&&(match[1]==='*'||url.protocol===match[1]+':')&&(url.hostname===match[3]||!!match[2]&&url.hostname.endsWith('.'+match[3]));}
-test('批量搜索全部8个国家42个平台组合均有专用采集配置、脚本覆盖和正确搜索词',()=>{
-  assert.equal(Object.keys(registry.countries).length,8);assert.equal(cases.length,42);
+test('批量搜索全部9个国家45个平台组合均有专用采集配置、脚本覆盖和正确搜索词',()=>{
+  assert.equal(Object.keys(registry.countries).length,9);assert.equal(cases.length,45);
   const scripts=manifest.content_scripts.filter(s=>s.js.includes('market_capture/content.js'));
   for(const {country,platform,url} of cases){
     const label=country+' '+platform.name,site=core.siteFor(url);assert.ok(site,label);assert.ok(core.CONFIG[site.family],label+' uses explicit rules');
@@ -27,7 +27,7 @@ function background(){
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../market_capture/background.js'),'utf8'),{chrome,URL,console,importScripts(){},IantoMarketCore:core,IantoMarketDirect:{create:()=>({resume:async()=>{},syncHeaders:async()=>{},getAnalysisData:async options=>{events.push(['analysis-read',options.force]);return {records:[],loadedAt:'fixture'};}})}});
   return {session,tabs,events,send:(value,sender={url:'chrome-extension://fixture/unified_popup.html'})=>new Promise(resolve=>listener({namespace:'iantoMarket',...value},sender,resolve))};
 }
-test('42组搜索先保存国家原词主题，再打开网页，独立的页面采集能取得本次上下文',async()=>{
+test('45组搜索先保存国家原词主题，再打开网页，独立的页面采集能取得本次上下文',async()=>{
   const f=background();
   for(const {country,url} of cases){
     const research={country,originalQuery:word,topic:'Fan research',researchId:'research-'+country};
