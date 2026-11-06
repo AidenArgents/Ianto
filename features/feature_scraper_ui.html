@@ -1,0 +1,80 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <title>产品标题抓取结果</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 20px; 
+      max-width: 1200px; /* 增加最大宽度，使其更宽 */
+      margin: auto; 
+    }
+    h1 { 
+      color: #333;
+      font-size: 2em; /* 增加标题字号 */
+    }
+    .ai-links {
+      margin-top: 10px;
+      margin-bottom: 20px;
+      font-size: 1.1em; /* 增加链接文字字号 */
+    }
+    .ai-links a { 
+      margin-right: 15px; 
+      text-decoration: none;
+      color: #007bff;
+    }
+    .ai-links a:hover {
+      text-decoration: underline;
+    }
+    .actions {
+        margin-bottom: 10px;
+    }
+    #copyButton {
+        padding: 8px 16px;
+        font-size: 1em;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+    }
+    ul { 
+      list-style: none; 
+      padding: 0; 
+      font-size: 1.1em; /* 增加列表项字号 */
+    }
+    li { 
+      margin-bottom: 8px; 
+      line-height: 1.5; 
+      border-bottom: 1px dashed #eee; 
+      padding-bottom: 5px; 
+    }
+    #status { 
+      font-style: italic; 
+      color: #666; 
+      margin-bottom: 20px; 
+    }
+  </style>
+</head>
+<body>
+  <h1>本页标题抓取结果</h1>
+
+  <div class="ai-links">
+    前往 AI 平台进行分析：
+    <a href="https://gemini.google.com/" target="_blank">Google Gemini</a>
+    <a href="https://openai.com/" target="_blank">OpenAI GPT</a>
+    <a href="https://www.deepseek.com/" target="_blank">DeepSeek</a>
+    <a href="https://www.doubao.com/" target="_blank">豆包</a>
+    <a href="https://www.kimi.ai/" target="_blank">Kimi</a>
+  </div>
+
+  <div class="actions">
+    <button id="copyButton">复制所有标题</button>
+  </div>
+  
+  <p id="status">正在加载，请稍候...</p>
+  <ul id="titleList"></ul>
+  
+  <script src="feature_scraper_ui.js"></script>
+</body>
+</html>

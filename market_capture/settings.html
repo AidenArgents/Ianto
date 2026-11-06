@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ianto · 市场调研采集设置</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#192a42;font:13px/1.6 system-ui,"Microsoft YaHei",sans-serif}main{max-width:1100px;padding:12px 16px;margin:auto}h1{font-size:18px;margin:0 0 8px}h2{font-size:13px;margin:0 0 6px;font-weight:600}.muted{color:#64738b;font-size:11px}header{margin-bottom:10px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:10px}.column{display:flex;flex-direction:column;gap:8px}section{background:white;border:1px solid #e0e6ef;border-radius:8px;padding:10px}.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}label{display:block;margin:4px 0;font-size:11px}input[type=text],input[type=password]{display:block;width:100%;border:1px solid #c9d2df;border-radius:4px;padding:5px;font:inherit;font-size:11px}button,a.action{display:inline-block;border:1px solid #c9d2df;border-radius:4px;padding:5px 10px;background:#fff;color:#234069;font:inherit;text-decoration:none;cursor:pointer;font-size:11px}button.primary{background:#1769e0;color:white;border-color:#1769e0}button.danger{background:#dc3545;color:white;border-color:#dc3545}button.purple{background:#7c3aed;color:white;border-color:#7c3aed;font-weight:600}button:disabled{opacity:.6;cursor:wait}.metric{flex:1;min-width:90px;padding:6px;background:#f3f7fc;border-radius:6px}.metric strong{display:block;font-size:18px}.metric strong a:hover{text-decoration:underline}.metric span{font-size:10px;color:#64738b}.message{white-space:pre-wrap;color:#315b88;margin-top:6px;font-size:11px}.item{padding:6px 0;border-bottom:1px solid #edf0f5;overflow-wrap:anywhere;font-size:11px}.item:last-child{border:0}.error{color:#a26416;font-size:11px}details{margin:6px 0}summary{cursor:pointer}small{font-size:10px}#feishu-link[hidden]{display:none}.item-actions{display:flex;gap:5px;margin-top:3px}.sync-actions{flex-wrap:nowrap}.sync-actions button{white-space:nowrap}@media(max-width:720px){.layout{grid-template-columns:1fr}}
+.inline-action{border:0;border-radius:0;padding:0;background:none;color:#a26416;font:inherit;text-decoration:underline;text-underline-offset:2px}.inline-action:disabled{color:inherit;opacity:1;text-decoration:none;cursor:default}
+</style></head><body><main>
+<header><a class="action" href="analysis.html" target="_blank" style="float:right">打开调研分析</a><h1>市场调研采集</h1><div class="muted">Ianto 直接写入飞书，无需启动本地服务。采集使用页面规则，不调用 AI。</div></header>
+<div class="layout">
+<div class="column">
+<section><h2>飞书配置</h2>
+<label>App ID<input id="app-id" type="text" autocomplete="off" placeholder="cli_…"></label>
+<label>App Secret<input id="app-secret" type="password" autocomplete="off" placeholder="首次填写；已有配置时留空保留"></label>
+<label>多维表格链接<input id="feishu-url" type="text" placeholder="https://my.feishu.cn/base/…?table=tbl…"></label>
+<button id="save" class="primary" style="width:100%;margin-top:4px">保存并检查连接</button>
+<p id="connection-status" class="muted" style="margin-top:6px">正在读取飞书配置…</p>
+</section>
+<section><h2>采集设置</h2>
+<label><input id="enabled" type="checkbox"> 在支持的商品站点显示悬浮按钮</label>
+<p class="muted">主题按本次搜索自动填写，无需在设置页提前填。需要自定义时，在商品或搜索页点悬浮钮旁的「⋯」，采集前即可填写。</p>
+</section>
+<section><h2>说明</h2>
+<p class="muted">商品详情页点「收录」；搜索结果页点「整理」，自动滚动加载本页商品后采集，再回到原位置。过程中点「停止」可保存已识别内容，按 Esc 取消。不自动翻页或打开商品详情。悬浮圆钮可以拖动并记住位置；关闭浏览器后，下次打开继续同步已保存任务。</p>
+</section>
+</div>
+<div class="column">
+<section><h2>连接与同步</h2>
+<div class="row"><div class="metric" title="已采集、尚未确认写入飞书的商品资料，按商品个数统计；不包含首图上传任务。"><strong id="pending-count">—</strong><span>商品资料待入表（个）</span></div><div class="metric"><strong id="saved-count"><a id="feishu-link" target="_blank" rel="noreferrer" hidden style="text-decoration:none;color:inherit;cursor:pointer">—</a></strong><span>飞书现有商品</span></div></div>
+<div class="row sync-actions"><button id="retry" class="primary" title="商品资料或首图没传到飞书时，点这里继续上传，失败的也会重试。已成功的内容保留，无需重新采集网页。">补传未完成内容</button><button id="refresh" title="查看飞书当前商品数和上传进度，不启动补传。">刷新状态</button></div>
+<p id="remote-status" class="muted" role="status" title="商品数统计飞书表内有商品ID、标题或链接的记录；空白行单独列出，不计入商品数。">正在读取飞书当前数据…</p>
+<p id="image-status" class="muted" title="统计此浏览器保留的采集记录中的首图上传结果；不是飞书表内当前图片数量。清除采集历史后，这组数字也会清除。"><span id="image-progress">正在检查首图上传进度…</span><button id="image-failure-toggle" class="inline-action" type="button" aria-expanded="false" aria-controls="image-failures" hidden disabled>失败 0 张</button></p>
+<div id="image-failures" class="error" hidden></div>
+<p id="opinion-progress" class="muted" hidden></p>
+<div id="header-error" class="error" role="status" hidden></div>
+<div id="message" class="message" role="status" hidden></div>
+</section>
+<section><h2>商品资料待入表批次</h2><div id="pending-list" class="muted">暂无待入表商品</div></section>
+<section><div class="row" style="justify-content:space-between"><h2>采集历史（单次快照）</h2><button id="clear-history" class="danger" type="button">清空全部历史</button></div><p class="muted">每次采集保留当时的商品信息；飞书后续删改不会改变快照。可按次导出或清除历史。</p><div id="history" class="muted">暂无记录</div></section>
+</div>
+</div>
+</main><script src="settings.js"></script></body></html>

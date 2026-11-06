@@ -1,0 +1,321 @@
+{
+  "manifest_version": 3,
+  "name": "Ianto",
+  "version": "2.9.1",
+  "options_page": "market_capture/settings.html",
+  "description": "||1.输入关键词，一键在单国家多个头部电商和数据平台打开搜索结果。||2.优化 Gemini, NotebookLM, Claude, ChatGPT, Manus 和 Grok 网页的阅读模式，使其内容更宽并居中，增加对话分类功能。||3.抓取并展示当前页面的产品标题。目前支持AE, amz, TT(fastmoss, echotik, Tokopedia), shopee(官网+shopdora.com) , lazada, mercadolibre(官网+lingdongsz.com), temu平台。||4.TikTok Shop 链接重定向器。||5.数据网关允许调用领星的部分产品数据。||6.根据sku查询海外仓一系列数据。||7.VOC爬取辅助功能。||8.在网页中同时高亮多个关键词。||9.作图系统自动化调用 Gemini 或 ChatGPT 网页，还有合租AI:leopard-x.memofun.net。||10.Amazon图片搜索功能",
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "action": {
+    "default_popup": "unified_popup.html",
+    "default_title": "多功能工具箱"
+  },
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "tabGroups",
+    "scripting",
+    "contextMenus",
+    "declarativeNetRequest",
+    "alarms",
+    "downloads"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>",
+    "https://gemini.google.com/*",
+    "https://notebook.google.com/*",
+    "https://manus.im/*",
+    "*://*.manus.im/*",
+    "https://claude.ai/*",
+    "*://shop.tiktok.com/*",
+    "*://www.tiktok.com/*",
+    "*://shop.tiktokglobalshop.com/*",
+    "http://www.instudio.me:6206/*",
+    "http://www.instudio.me:12121/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://*.oaiusercontent.com/*",
+    "https://echotik.live/*",
+    "https://grok.com/*",
+    "*://*.lazada.co.id/*",
+    "*://*.lazada.com.my/*",
+    "*://*.lazada.vn/*",
+    "*://*.lazada.sg/*",
+    "*://*.lazada.com.ph/*",
+    "*://*.lazada.co.th/*"
+  ],
+  
+  "content_scripts": [
+    {
+      "matches": ["https://*.feishu.cn/base/*", "https://feishu.cn/base/*"],
+      "js": ["market_capture/feishu_page.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:4173/*", "http://127.0.0.1:4173/*"],
+      "js": ["content_scripts/video_bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://gemini.google.com/*",
+        "https://notebook.google.com/*"
+      ],
+      "js": [
+        "content_scripts/content_gemini_adjuster.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content_scripts/content_web_material_session.js", "content_scripts/content_gemini_image_worker.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://manus.im/*",
+        "*://*.manus.im/*"
+      ],
+      "js": ["content_scripts/content_manus_adjuster.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content_scripts/content_claude_adjuster.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://shop.tiktok.com/*",
+        "*://www.tiktok.com/*",
+        "*://shop.tiktokglobalshop.com/*"
+      ],
+      "js": [
+        "content_scripts/content_tiktok_redirector.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "file:///*/*",
+        "file:///*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost:5500/*",
+        "http://127.0.0.1:5500/*",
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*",
+        "http://localhost:8080/*",
+        "http://127.0.0.1:8080/*"
+      ],
+      "js": ["content_scripts/bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": [
+        "content_scripts/content_chatgpt_adjuster.js",
+        "content_scripts/content_web_material_session.js", "content_scripts/content_chatgpt_image_worker.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://leopard-x.memofun.net/*"],
+      "js": ["content_scripts/content_web_material_session.js", "content_scripts/content_leopard_image_worker.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://echotik.live/*"],
+      "js": ["content_scripts/content_echotik_fixer.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://grok.com/*"],
+      "js": ["content_scripts/content_grok_adjuster.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://www.instudio.me:6206/v3/overseaStocking/ProductPerformance*",
+        "http://www.instudio.me:6206/v3/overseaStocking/Replenishment/plan*"
+      ],
+      "js": ["content_scripts/content_sku_api_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://erp.lingxing.com/*"],
+      "js": ["content_scripts/wms_relay.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://erp.lingxing.com/*"],
+      "js": ["content_scripts/wms_lingxing-recon.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://erp.lingxing.com/*"],
+      "js": ["features/lingxing_erp.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://www.instudio.me:6206/v3/overseaStocking/ProductPerformance*"],
+      "js": ["content_scripts/content_sku_performance.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://www.instudio.me:6206/v3/overseaStocking/Replenishment/plan*"],
+      "js": ["content_scripts/content_sku_replenishment.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "file:///*"
+      ],
+      "js": ["content_scripts/content_multihighlight.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    },
+    {
+      "matches": [
+        "*://*.amazon.com.mx/*", "*://*.amazon.com.br/*", "*://*.amazon.sg/*", "*://*.amazon.com/*",
+        "*://*.mercadolibre.com.mx/*", "*://*.mercadolivre.com.br/*",
+        "*://*.shopee.com.br/*", "*://*.shopee.co.id/*", "*://*.shopee.ph/*", "*://*.shopee.com.my/*", "*://*.shopee.vn/*", "*://*.shopee.co.th/*", "*://*.shopee.sg/*",
+        "*://*.lazada.co.id/*", "*://*.lazada.com.ph/*", "*://*.lazada.com.my/*", "*://*.lazada.co.th/*", "*://*.lazada.vn/*", "*://*.lazada.sg/*",
+        "https://*.fastmoss.com/*", "https://*.echotik.live/*",
+        "*://shop.tiktok.com/*", "*://www.tiktok.com/*", "*://shop.tiktokglobalshop.com/*",
+        "*://*.aliexpress.com/*", "*://*.tokopedia.com/*", "*://*.temu.com/*", "*://*.1688.com/*",
+        "*://*.olx.com.br/*", "*://*.blibli.com/*", "*://*.mudah.my/*", "*://*.carousell.sg/*"
+      ],
+      "js": ["market_capture/data.js", "market_capture/core.js", "market_capture/search.js", "market_capture/opinion_editor.js", "market_capture/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.walmart.com/*"],
+      "js": ["content_scripts/content_walmart_image_drag.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.amazon.com/*",
+        "*://*.amazon.co.uk/*",
+        "*://*.amazon.de/*",
+        "*://*.amazon.co.jp/*",
+        "*://*.amazon.fr/*",
+        "*://*.amazon.it/*",
+        "*://*.amazon.es/*",
+        "*://*.amazon.ca/*",
+        "*://*.amazon.com.au/*",
+        "*://*.amazon.com.mx/*",
+        "*://*.amazon.com.br/*",
+        "*://*.amazon.in/*",
+        "*://*.amazon.nl/*",
+        "*://*.amazon.sg/*",
+        "*://*.amazon.ae/*",
+        "*://*.amazon.sa/*",
+        "*://*.amazon.se/*",
+        "*://*.amazon.pl/*",
+        "*://*.amazon.com.tr/*",
+        "*://*.amazon.com.be/*",
+        "*://*.amazon.eg/*",
+        "*://*.amazon.cn/*"
+      ],
+      "exclude_matches": [
+        "*://*.amazon.com/stylesnap*",
+        "*://*.amazon.co.uk/stylesnap*",
+        "*://*.amazon.de/stylesnap*",
+        "*://*.amazon.co.jp/stylesnap*",
+        "*://*.amazon.fr/stylesnap*",
+        "*://*.amazon.it/stylesnap*",
+        "*://*.amazon.es/stylesnap*",
+        "*://*.amazon.ca/stylesnap*",
+        "*://*.amazon.com.au/stylesnap*",
+        "*://*.amazon.com.mx/stylesnap*",
+        "*://*.amazon.com.br/stylesnap*",
+        "*://*.amazon.in/stylesnap*",
+        "*://*.amazon.nl/stylesnap*",
+        "*://*.amazon.sg/stylesnap*",
+        "*://*.amazon.ae/stylesnap*",
+        "*://*.amazon.sa/stylesnap*",
+        "*://*.amazon.se/stylesnap*",
+        "*://*.amazon.pl/stylesnap*",
+        "*://*.amazon.com.tr/stylesnap*",
+        "*://*.amazon.com.be/stylesnap*",
+        "*://*.amazon.eg/stylesnap*",
+        "*://*.amazon.cn/stylesnap*"
+      ],
+      "js": ["content_scripts/content_amz_search.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.amazon.com/stylesnap*",
+        "*://*.amazon.co.uk/stylesnap*",
+        "*://*.amazon.de/stylesnap*",
+        "*://*.amazon.co.jp/stylesnap*",
+        "*://*.amazon.fr/stylesnap*",
+        "*://*.amazon.it/stylesnap*",
+        "*://*.amazon.es/stylesnap*",
+        "*://*.amazon.ca/stylesnap*",
+        "*://*.amazon.com.au/stylesnap*",
+        "*://*.amazon.com.mx/stylesnap*",
+        "*://*.amazon.com.br/stylesnap*",
+        "*://*.amazon.in/stylesnap*",
+        "*://*.amazon.nl/stylesnap*",
+        "*://*.amazon.sg/stylesnap*",
+        "*://*.amazon.ae/stylesnap*",
+        "*://*.amazon.sa/stylesnap*",
+        "*://*.amazon.se/stylesnap*",
+        "*://*.amazon.pl/stylesnap*",
+        "*://*.amazon.com.tr/stylesnap*",
+        "*://*.amazon.com.be/stylesnap*",
+        "*://*.amazon.eg/stylesnap*",
+        "*://*.amazon.cn/stylesnap*"
+      ],
+      "js": ["content_scripts/content_amz_stylesnap.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "features/feature_scraper_ui.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_mabangerp_cors",
+        "enabled": true,
+        "path": "rules/rules_mabangerp_cors.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "ianto-development-checks",
+  "private": true,
+  "scripts": {
+    "test:chatgpt": "node scripts/test-chatgpt-folders.cjs",
+    "test:market": "node --test scripts/test-market-*.cjs"
+  },
+  "devDependencies": {
+    "linkedom": "0.18.14",
+    "playwright": "1.64.1"
+  }
+}

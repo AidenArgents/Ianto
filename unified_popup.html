@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ianto小助理</title>
+  <style>
+    /* 基础 Popup 样式 */
+    html, body {
+      width: 494px;
+      min-width: 494px;
+      max-width: 494px;
+      margin: 0;
+      overflow-x: hidden;
+    }
+    body { min-height: 520px; font-family: sans-serif; }
+    
+    /* 标签页头部样式 */
+    .tab-header { display: flex; border-bottom: 2px solid #ccc; }
+    .tab-button {
+      flex: 1; padding: 10px 0; cursor: pointer; border: none; 
+      background-color: #f1f1f1; border-right: 1px solid #ccc;
+      transition: background-color 0.3s; font-size: 14px;
+    }
+    .tab-button.active { background-color: #fff; border-bottom: 2px solid #4CAF50; margin-bottom: -2px; }
+    
+    /* 标签页内容容器 */
+    .tab-content { padding: 15px; display: none; }
+    .tab-content.active { display: block; }
+    
+    /* ================================================= */
+    /* 1. WFS 拉取样式 */
+    /* ================================================= */
+    #tab-wfs .wfs-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid #e0e0e0; }
+    #tab-wfs .wfs-row:first-of-type { border-top:none; }
+    #tab-wfs .wfs-info { flex:1; min-width:0; }
+    #tab-wfs .wfs-label { font-size:13px; font-weight:500; }
+    #tab-wfs .wfs-time { font-size:11px; color:#666; margin-top:2px; }
+    #tab-wfs .wfs-time.ok { color:#4CAF50; }
+    #tab-wfs .wfs-time.running { color:#2196F3; }
+    #tab-wfs .wfs-time.error { color:#f44336; }
+    #tab-wfs .wfs-cur { background:#e3f2fd; margin:0 -15px; padding:8px 15px; }
+    #tab-wfs .wfs-cur-tag { display:inline-block; margin-left:6px; font-size:10px; font-weight:600; color:#fff; background:#2196F3; border-radius:4px; padding:1px 5px; vertical-align:middle; }
+    #tab-wfs button { padding:7px 12px; font-size:13px; font-weight:600; border:none; border-radius:8px; background:#2196F3; color:#fff; cursor:pointer; white-space:nowrap; }
+    #tab-wfs button:disabled { background:#ccc; color:#666; cursor:not-allowed; }
+    #tab-wfs .wfs-sub { font-size: 11px; color:#666; margin-bottom: 12px; line-height:1.5; }
+    #tab-wfs .wfs-foot { font-size:11px; color:#666; margin-top:12px; line-height:1.6; border-top:1px solid #e0e0e0; padding-top:10px; }
+
+    /* ================================================= */
+    /* 2. 批量搜索样式 (重点修改部分) */
+    /* ================================================= */
+    
+    /* 关键词输入框和下拉框样式 (保持原始 MultiSearch 的 ID 兼容) */
+    #multisearch_keyword, #multisearch_country_select { 
+        width: 100%;
+        padding: 8px; 
+        margin-bottom: 10px; 
+        box-sizing: border-box; 
+        border: 1px solid #ccc; 
+        border-radius: 4px; 
+    }
+    #multisearch_keyword {
+        min-height: 92px;
+        resize: vertical;
+        font: inherit;
+        line-height: 1.4;
+    }
+    .multisearch-keyword-hint {
+        margin: -5px 0 10px;
+        color: #666;
+        font-size: 12px;
+    }
+    /* 国家选择容器，调整间距 */
+    .country-selection {
+        margin-bottom: 10px;
+    }
+    .country-selection label {
+        display: block; /* 使标签独占一行 */
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    
+    /* 平台列表容器 */
+    .multisearch-platform-list { 
+        margin-top: 10px; 
+        padding: 10px; 
+        border: 1px solid #e0e0e0; 
+        border-radius: 4px; 
+        background-color: #f9f9f9; 
+        max-height: 180px; /* 限制高度，允许滚动 */
+        overflow-y: auto;
+    }
+    
+    /* 平台列表项 (关键修复：确保单列显示，修复错位) */
+    .multisearch-platform-list .platform-item { 
+        /* 关键：改为块级元素，实现垂直堆叠 */
+        display: block; 
+        width: 100%; /* 占据整行 */
+        margin-bottom: 5px; 
+        padding: 2px 0;
+    } 
+    .multisearch-platform-list .platform-item label { 
+        cursor: pointer; 
+    }
+
+    /* 批量搜索按钮 */
+    #multisearch-button {
+        width: 100%;
+        padding: 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 16px;
+        margin-top: 10px;
+    }
+    #multisearch-button:hover {
+        background-color: #45a049;
+    }
+
+    /* ================================================= */
+    /* 3. TikTok 重定向样式 (确保支持 active-mode) */
+    /* ================================================= */
+    #tab-tiktok .tt-mode-button { 
+        width: 100%; 
+        padding: 10px; 
+        margin-bottom: 10px; /* 增加按钮间距 */
+        border: 2px solid transparent; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-size: 15px; 
+        font-weight: bold;
+        transition: all 0.2s;
+        position: relative;
+    }
+    
+    /* 定义激活状态的视觉效果，使用 JS 期望的 active-mode 类 */
+    .tt-mode-button.active-mode { 
+        border: 2px solid #25F4EE; /* 青色边框突出 */
+        outline: 3px solid #25F4EE;
+        outline-offset: -3px;
+        box-shadow: 0 0 8px rgba(37, 244, 238, 0.6); 
+    }
+
+    /* 激活状态的指示器：显示 '✓ 当前固定模式' */
+    .tt-mode-button.active-mode::after {
+        content: '✓ 当前固定模式';
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        font-size: 10px;
+        background-color: rgba(255, 255, 255, 0.9);
+        color: #161823;
+        padding: 2px 5px;
+        border-radius: 4px;
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+    }
+
+    /* ================================================= */
+    /* 5. SKU 查询样式 */
+    /* ================================================= */
+    #tab-sku .sku-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    #tab-sku #sku_input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+      line-height: 1.4;
+      box-sizing: border-box;
+    }
+    #tab-sku #sku_input:focus { border-color: #409eff; }
+    #tab-sku #sku_go_btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #409eff;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      align-self: flex-start;
+    }
+    #tab-sku #sku_go_btn:hover { background: #66b1ff; }
+    #tab-sku .sku-options { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+    #tab-sku .sku-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 13px; }
+    #tab-sku .sku-history { margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; }
+    #tab-sku .sku-history-title { color: #888; font-size: 12px; margin-bottom: 6px; }
+    #tab-sku .sku-history-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    #tab-sku .sku-history-item {
+      background: #f5f7fa;
+      border: 1px solid #e4e7ed;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #tab-sku .sku-history-item:hover { background: #ecf5ff; border-color: #409eff; color: #409eff; }
+    #tab-sku .sku-clear-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 3px;
+      background: #f0f0f0;
+      color: #555;
+      cursor: pointer;
+      font-size: 12px;
+      float: right;
+      margin-top: -2px;
+    }
+    #tab-sku .sku-clear-btn:hover { background: #e0e0e0; }
+    #tab-sku .sku-hint { color: #999; font-size: 11px; margin-top: 8px; line-height: 1.5; }
+
+    /* ================================================= */
+    /* 6. 多词高亮样式 */
+    /* ================================================= */
+    #tab-multihighlight .mh-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border: 1px solid #e4e7ed;
+      border-radius: 6px;
+      background: #f7f9fc;
+    }
+    #tab-multihighlight .mh-toolbar-label { font-size: 13px; color: #333; }
+    #tab-multihighlight .mh-switch {
+      min-width: 66px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 16px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+    #tab-multihighlight .mh-switch.is-on { background: #4caf50; }
+    #tab-multihighlight .mh-switch.is-off { background: #909399; }
+    #tab-multihighlight #multihighlight_keywords {
+      width: 100%;
+      min-height: 150px;
+      box-sizing: border-box;
+      padding: 10px;
+      border: 1px solid #cfd5de;
+      border-radius: 5px;
+      outline: none;
+      resize: vertical;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    #tab-multihighlight #multihighlight_keywords:focus { border-color: #409eff; }
+    #tab-multihighlight .mh-palette {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+      margin-top: 8px;
+    }
+    #tab-multihighlight .mh-color-swatch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 20px;
+      border-radius: 3px;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+      font-size: 10px;
+      font-weight: bold;
+      user-select: none;
+    }
+    #tab-multihighlight .mh-color-1 { color: #000; background: #fff200; }
+    #tab-multihighlight .mh-color-2 { color: #000; background: #ffc400; }
+    #tab-multihighlight .mh-color-3 { color: #fff; background: #e53935; }
+    #tab-multihighlight .mh-color-4 { color: #fff; background: #2878e8; }
+    #tab-multihighlight .mh-color-5 { color: #000; background: #9bea19; }
+    #tab-multihighlight .mh-color-6 { color: #fff; background: #dc19d9; }
+    #tab-multihighlight .mh-color-7 { color: #000; background: #19c8d8; }
+    #tab-multihighlight .mh-color-8 { color: #fff; background: #7b3fc6; }
+    #tab-multihighlight .mh-color-9 { color: #000; background: #c6d92c; }
+    #tab-multihighlight .mh-color-10 { color: #fff; background: #795548; }
+    #tab-multihighlight .mh-hint,
+    #tab-multihighlight .mh-status { font-size: 12px; line-height: 1.5; }
+    #tab-multihighlight .mh-hint { margin: 8px 0 0; color: #777; }
+    #tab-multihighlight .mh-status { min-height: 18px; margin-top: 8px; color: #409eff; }
+
+    /* ================================================= */
+    /* 4. Gemini 宽度调整器样式 */
+    /* ================================================= */
+    #tab-gemini button { 
+        width: 100%; 
+        padding: 10px; 
+        background-color: #4CAF50; 
+        color: white; 
+        border: none; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-size: 16px; 
+        margin-top: 10px;
+    }
+    #tab-gemini button:hover {
+        background-color: #45a049;
+    }
+
+  </style>
+</head>
+<body>
+  <div style="text-align: center; margin: 10px 0;">
+    <h1 style="font-size: 20px; color: #333;">Ianto小助理</h1>
+  </div>
+  
+  <div class="tab-header">
+    <button class="tab-button active" data-tab="multisearch">批量搜索</button>
+    <button class="tab-button" data-tab="gemini">AI工具宽度</button>
+    <button class="tab-button" data-tab="sku">SKU查询</button>
+    <button class="tab-button" data-tab="wfs">WFS拉取</button>
+    <button class="tab-button" data-tab="multihighlight">多词高亮</button>
+    <button class="tab-button" data-tab="tiktok">TikTok重定向</button>
+    <button class="tab-button" data-tab="backup">📁 自动备份</button>
+  </div>
+  
+  <div id="tab-multisearch" class="tab-content active">
+    <h3>批量搜索</h3>
+
+    <textarea id="multisearch_keyword" rows="4" placeholder="每行输入一个关键词（当地语言）"></textarea>
+    <p class="multisearch-keyword-hint">按行顺序依次搜索；空行会忽略。</p>
+
+    <div class="country-selection">
+      <label for="multisearch_country_select">选择目标国家:</label>
+      <select id="multisearch_country_select"></select>
+    </div>
+
+    <div class="multisearch-platform-list" id="multisearch_platform_list">
+      <p id="platformHint">请选择国家...</p>
+    </div>
+
+    <button id="multisearch-button">按顺序批量搜索</button>
+    <p id="multisearch-status" aria-live="polite" style="min-height:16px;margin:5px 0 0;font-size:11px;color:#666"></p>
+    <div style="margin-top:16px">
+      <label for="multisearch_research_topic" style="display:block;margin-bottom:4px">本次调研主题（可不填，不沿用上次）</label>
+      <input id="multisearch_research_topic" type="text" maxlength="200" placeholder="不填则用第一行关键词作为主题" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:4px">
+      <div style="display:flex;gap:8px;margin-top:8px"><label style="flex:1;min-width:0;font-size:12px">归入调研<select id="multisearch-round" style="width:100%;min-width:0;padding:6px;font-size:12px"><option value="">新建调研（使用本次主题）</option></select></label><label id="multisearch-product-wrap" style="flex:1;min-width:0;font-size:12px" hidden>产品组<select id="multisearch-product" style="width:100%;min-width:0;padding:6px;font-size:12px"><option value="">新产品（使用本次主题）</option></select></label></div><p id="workflow-popup-status" style="font-size:11px;color:#718096;margin:4px 0"></p>
+      <a href="market_capture/settings.html" target="_blank" style="display:inline-block;margin-top:5px;font-size:12px">采集设置 / 待同步记录</a>
+      <a href="market_capture/analysis.html" target="_blank" style="display:inline-block;margin:5px 0 0 16px;font-size:12px">调研分析</a>
+    </div>
+  </div>
+
+  <div id="tab-sku" class="tab-content">
+    <h3>SKU 批量一键查询</h3>
+    <div class="sku-row">
+      <textarea id="sku_input" placeholder="输入多个 SKU，支持空格、逗号或换行分隔..."></textarea>
+      <button id="sku_go_btn">打开</button>
+    </div>
+    <div class="sku-options">
+      <label><input type="checkbox" id="sku_opt_perf" checked /> 外仓产品表现</label>
+      <label><input type="checkbox" id="sku_opt_repl" checked /> 海外仓补货计划</label>
+      <label style="padding-left:22px;color:#666;font-size:12px"><input type="checkbox" id="sku_opt_clear_date" checked /> 清掉默认时间筛选</label>
+      <label><input type="checkbox" id="sku_opt_eshop" checked /> 订单历史记录</label>
+    </div>
+    <div class="sku-history">
+      <div class="sku-history-title">最近：<button id="sku_clear_history" class="sku-clear-btn">清空</button></div>
+      <div class="sku-history-list" id="sku_history"></div>
+    </div>
+    <div class="sku-hint">提示：先在目标页面登录；按 Enter 等同点"打开"。</div>
+  </div>
+
+  <div id="tab-multihighlight" class="tab-content">
+    <h3>多词高亮</h3>
+    <div class="mh-toolbar">
+      <span class="mh-toolbar-label">网页高亮状态</span>
+      <button id="multihighlight_toggle" class="mh-switch is-on" type="button" role="switch" aria-checked="true">已开启</button>
+    </div>
+    <textarea id="multihighlight_keywords" spellcheck="false" placeholder="输入要高亮的关键词，例如：&#10;SKU123&#10;待补货&#10;重点"></textarea>
+    <div class="mh-palette" aria-label="高亮颜色循环顺序">
+      <span class="mh-color-swatch mh-color-1" title="颜色 1">1</span>
+      <span class="mh-color-swatch mh-color-2" title="颜色 2">2</span>
+      <span class="mh-color-swatch mh-color-3" title="颜色 3">3</span>
+      <span class="mh-color-swatch mh-color-4" title="颜色 4">4</span>
+      <span class="mh-color-swatch mh-color-5" title="颜色 5">5</span>
+      <span class="mh-color-swatch mh-color-6" title="颜色 6">6</span>
+      <span class="mh-color-swatch mh-color-7" title="颜色 7">7</span>
+      <span class="mh-color-swatch mh-color-8" title="颜色 8">8</span>
+      <span class="mh-color-swatch mh-color-9" title="颜色 9">9</span>
+      <span class="mh-color-swatch mh-color-10" title="颜色 10">10</span>
+    </div>
+    <p class="mh-hint">关键词使用空格或换行分隔；不同关键词会使用不同颜色。采用无侵入高亮，不修改网页内容，可用于在线文档。</p>
+    <div id="multihighlight_status" class="mh-status" aria-live="polite"></div>
+  </div>
+
+  <div id="tab-tiktok" class="tab-content">
+    <h3>TikTok 重定向模式</h3>
+    <p>选择一个固定模式。如需手动切换，请使用右键菜单。</p>
+    <button class="tt-mode-button" id="tt_mode_a_btn" data-mode="DOMAIN_A_FIXED" style="background-color: #FE2C55; color: white;">固定模式 A (shop.tiktok.com)</button>
+    <button class="tt-mode-button" id="tt_mode_b_btn" data-mode="DOMAIN_B_FIXED" style="background-color: #161823; color: white;">固定模式 B (shop.tiktokglobalshop.com)</button>
+    <button class="tt-mode-button" id="tt_mode_c_btn" data-mode="DOMAIN_C_FIXED" style="background-color: #25F4EE; color: #111;">固定模式 C (www.tiktok.com/shop/{国家}/pdp，需要对应国家IP)</button>
+    <button class="tt-mode-button" id="tt_mode_none_btn" data-mode="NONE" style="background-color: #585858; color: white;">不重定向 (关闭)</button>
+  </div>
+
+  <div id="tab-gemini" class="tab-content">
+    <h3>AI 页面优化调整</h3>
+    <p>宽屏显示，并开启对话文件夹分类功能。</p>
+    
+    <div style="margin-bottom: 10px;">
+        <button id="chatgpt_toggle_width_btn" style="width: 100%; padding: 8px; border: none; border-radius: 4px; cursor: pointer; background-color: #555; color: #fff; font-weight: bold;">
+            ChatGPT 优化：未知状态
+        </button>
+    </div>
+
+    <div style="margin-bottom: 10px; padding: 10px; background-color: #f0fdf8; border: 1px solid #a7f3d0; border-radius: 4px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #065f46;">📁 ChatGPT 分类数据备份</h4>
+        <div style="display: flex; gap: 8px;">
+            <button id="chatgpt_export_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #6ee7b7; background: #fff; color: #065f46; border-radius: 4px; font-size: 12px; font-weight: bold;">导出备份 (.json)</button>
+            <button id="chatgpt_import_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #6ee7b7; background: #fff; color: #065f46; border-radius: 4px; font-size: 12px; font-weight: bold;">导入恢复</button>
+        </div>
+        <input type="file" id="chatgpt_import_file" accept=".json" style="display: none;">
+    </div>
+
+    <div style="margin-bottom: 10px;">
+        <button id="gemini_toggle_width_btn" style="width: 100%; padding: 8px; font-weight: bold; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            优化 Gemini / NotebookLM
+        </button>
+    </div>
+
+    <div style="margin-bottom: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #555;">📁 Gemini 分类数据备份</h4>
+        <div style="display: flex; gap: 8px;">
+            <button id="gemini_export_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-size: 12px; color: #333;">导出备份 (.json)</button>
+            <button id="gemini_import_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-size: 12px; color: #333;">导入恢复</button>
+        </div>
+        <input type="file" id="gemini_import_file" accept=".json" style="display: none;">
+    </div>
+
+    <div style="margin-bottom: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #555;">📁 Gemini Gems 分类数据备份</h4>
+        <div style="display: flex; gap: 8px;">
+            <button id="gems_export_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-size: 12px; color: #333;">导出备份 (.json)</button>
+            <button id="gems_import_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-size: 12px; color: #333;">导入恢复</button>
+        </div>
+        <input type="file" id="gems_import_file" accept=".json" style="display: none;">
+    </div>
+
+<div style="margin-bottom: 10px; padding: 10px; background-color: #f4f7fe; border: 1px solid #dce4fa; border-radius: 4px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #0b57d0;">📁 NotebookLM 分类数据备份</h4>
+        <div style="display: flex; gap: 8px;">
+            <button id="nlm_export_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #adc6f8; background: #fff; color: #0b57d0; border-radius: 4px; font-size: 12px; font-weight: bold;">导出备份 (.json)</button>
+            <button id="nlm_import_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #adc6f8; background: #fff; color: #0b57d0; border-radius: 4px; font-size: 12px; font-weight: bold;">导入恢复</button>
+        </div>
+        <input type="file" id="nlm_import_file" accept=".json" style="display: none;">
+    </div>
+
+    <div style="margin-bottom: 10px;">
+        <button id="grok_toggle_width_btn" style="width: 100%; padding: 8px; border: none; border-radius: 4px; cursor: pointer; background-color: #555; color: #fff; font-weight: bold;">
+            Grok 优化：未知状态
+        </button>
+    </div>
+
+    <div style="margin-bottom: 10px; padding: 10px; background-color: #f0faf5; border: 1px solid #19c37d40; border-radius: 4px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #0e7a50;">📁 Grok 分类数据备份</h4>
+        <div style="display: flex; gap: 8px;">
+            <button id="grok_export_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #19c37d80; background: #fff; color: #0e7a50; border-radius: 4px; font-size: 12px; font-weight: bold;">导出备份 (.json)</button>
+            <button id="grok_import_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #19c37d80; background: #fff; color: #0e7a50; border-radius: 4px; font-size: 12px; font-weight: bold;">导入恢复</button>
+        </div>
+        <input type="file" id="grok_import_file" accept=".json" style="display: none;">
+    </div>
+    <div style="margin-bottom: 4px;">
+        <button id="manus_toggle_width_btn" style="width: 100%; padding: 8px; border: none; border-radius: 4px; cursor: pointer; background-color: #555; color: #fff; font-weight: bold;">
+            Manus 优化：未知状态
+        </button>
+    </div>
+    <div style="margin-bottom: 10px; padding: 8px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
+        <div style="font-size: 12px; color: #555; margin-bottom: 6px; font-weight: bold;">📁 Manus 分类数据备份</div>
+        <div style="display: flex; gap: 8px;">
+            <button id="manus_export_btn" style="flex: 1; padding: 5px; cursor: pointer; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 4px; font-size: 12px;">导出备份 (.json)</button>
+            <button id="manus_import_btn" style="flex: 1; padding: 5px; cursor: pointer; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 4px; font-size: 12px;">导入恢复</button>
+        </div>
+        <input type="file" id="manus_import_file" accept=".json" style="display: none;">
+    </div>
+
+    <div style="margin-bottom: 10px;">
+        <button id="claude_toggle_width_btn" style="width: 100%; padding: 8px; border: none; border-radius: 4px; cursor: pointer; background-color: #d97757; color: #fff;">
+            切换/恢复 Claude 宽度
+        </button>
+    </div>
+
+    <div style="margin-bottom: 10px; padding: 10px; background-color: #fef5f3; border: 1px solid #f5dcd5; border-radius: 4px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #d97757;">📁 Claude 分类数据备份</h4>
+        <div style="display: flex; gap: 8px;">
+            <button id="claude_export_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #eab8a8; background: #fff; color: #d97757; border-radius: 4px; font-size: 12px; font-weight: bold;">导出备份 (.json)</button>
+            <button id="claude_import_btn" style="flex: 1; padding: 6px; cursor: pointer; border: 1px solid #eab8a8; background: #fff; color: #d97757; border-radius: 4px; font-size: 12px; font-weight: bold;">导入恢复</button>
+        </div>
+        <input type="file" id="claude_import_file" accept=".json" style="display: none;">
+    </div>
+
+  </div>
+
+  <div id="tab-wfs" class="tab-content">
+    <h3>📦 WFS 数据拉取</h3>
+    <div class="wfs-sub">读取领星 Walmart WFS库存与库龄，仅按平台发货订单汇总 MSKU销量和预计可售天数。</div>
+    <div id="wfs_rows"></div>
+    <div class="wfs-foot">点击「拉取」会自动打开或刷新 WFS库存、订单列表，销量固定筛选 Walmart＋平台发货，排除自发货、取消及退款。成功后在看板「基础数据(真实库龄)」页刷新读取；失败原因会保留在这里。</div>
+  </div>
+
+  <div id="tab-backup" class="tab-content">
+    <h3>📁 AI书签自动备份</h3>
+    <p style="margin-top: 0; font-size: 13px; color: #666;">
+      自动备份 7 个 AI 平台的分类数据到本地（Gemini, Gems, Claude, NotebookLM, ChatGPT, Manus, Grok）
+    </p>
+
+    <div style="margin-bottom: 15px; padding: 12px; background-color: #e8f5e9; border: 1px solid #81c784; border-radius: 4px;">
+      <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #2e7d32;">⏰ 工作流程</h4>
+      <p style="margin: 5px 0; font-size: 12px; color: #333;">
+        ✅ 每8小时自动检查一次<br>
+        ✅ 数据有变化 → 自动下载JSON到本地<br>
+        ✅ 数据相同 → 跳过，不新建文件<br>
+        ⚠️ 30天后的旧文件 → 需要手动删除
+      </p>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button id="backup_manual_btn" style="flex: 1; padding: 8px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">
+          📥 立即备份（综合）
+        </button>
+        <button id="backup_restore_btn" style="flex: 1; padding: 8px; background-color: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">
+          📤 一键导入恢复
+        </button>
+      </div>
+      <input type="file" id="backup_restore_file" accept=".json" style="display: none;">
+    </div>
+
+    <div id="backup_status" style="padding: 10px; background-color: #f5f5f5; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #666;">
+      <p style="margin: 0;">上次备份时间：<span id="backup_time">--</span></p>
+    </div>
+
+    <div style="padding: 12px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 12px; color: #333; margin-bottom: 10px;">
+      <strong>⚙️ 备份文件保存在哪？</strong><br>
+      <ul style="margin: 8px 0; padding-left: 20px;">
+        <li>插件会随浏览器直接将文件保存到 <strong>Chrome 默认的下载文件夹</strong>中。</li>
+        <li>由于安全限制，插件无法替您修改存放位置。如果需要分类存放，建议在浏览器设置中开启<strong>“下载前询问每个文件的保存位置”</strong>，或修改全局默认路径。</li>
+      </ul>
+    </div>
+
+    <div style="padding: 12px; background-color: #e3f2fd; border: 1px solid #2196F3; border-radius: 4px; font-size: 12px; color: #333;">
+      <strong>🗑️ 清理过期备份：</strong><br>
+      • 插件<strong>无法自动删除</strong>本地文件（系统限制）<br>
+      • 30天前的文件需要<strong>手动删除</strong><br>
+      • 建议：定期打开该文件夹，删除时间较长的备份<br>
+      • 文件名格式：<code style="background: #f0f0f0; padding: 2px 4px;">Ianto_AI_Bookmarks_YYYY-MM-DDTHH-MM-SS.json</code>
+    </div>
+
+    <div style="padding: 10px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; color: #666; margin-top: 10px;">
+      <strong>💡 为什么这样设计？</strong><br>
+      • 数据存在本地，不依赖浏览器或插件ID<br>
+      • 插件卸载/重装后数据仍然保在本地<br>
+      • 支持多版本，你可以随时查看历史备份<br>
+      • 完全离线，无需云盘同步
+    </div>
+  </div>
+
+  <script src="tab_control.js"></script>
+  <script src="features/multisearch_platforms.js"></script>
+  <script src="features/feature_multisearch.js"></script>
+  <script src="market_capture/popup.js"></script>
+  <script src="features/feature_tiktok_popup.js"></script>
+  <script src="features/feature_gemini_popup.js"></script>
+  <script src="features/feature_auto_backup_ui.js"></script>
+  <script src="features/feature_sku_search.js"></script>
+  <script src="features/feature_multihighlight.js"></script>
+  <script src="features/feature_wfs_popup.js"></script>
+</body>
+</html>
