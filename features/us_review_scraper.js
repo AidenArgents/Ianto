@@ -17,7 +17,7 @@
       for(const selector of selectors) {
         const node=root.querySelector(selector);
         if(!node)continue;
-        const value=tidy(node.getAttribute('content')||node.getAttribute('aria-label')||node.innerText||node.textContent);
+        const value=tidy(node.getAttribute('content')||node.getAttribute('datetime')||node.getAttribute('aria-label')||node.innerText||node.textContent);
         if(value)return value;
       }
       return '';
@@ -49,7 +49,7 @@
     const scopeSelectors=walmart?
       ['[data-testid="review-list"]','[data-testid="reviews-section"]','[data-testid="reviews-and-ratings"]','#item-review-section','#customer-reviews','[itemprop="review"]']:
       ['#productReviews','.x-review-section','[data-testid="product-reviews"]','[itemprop="review"]','section[aria-label*="Product reviews"]'];
-    const scope=scopeSelectors.map(selector=>document.querySelector(selector)).find(Boolean)||(reviewPage?document.body:null);
+    const scope=scopeSelectors.filter(selector=>selector!=='[itemprop="review"]').map(selector=>document.querySelector(selector)).find(Boolean)||document.querySelector('[itemprop="review"]')?.parentElement||(reviewPage?document.body:null);
     if(!scope)return {productName,reviews:[],debug:{platform,reason:ebay?'没有发现商品评价区域（卖家 Feedback 不采集）':'没有发现评论区域'}};
     const cardSelectors=walmart?
       ['[data-testid="review-card"]','[data-testid="review-item"]','article[data-testid="customer-review"]','[itemprop="review"]']:

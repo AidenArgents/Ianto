@@ -149,7 +149,7 @@
       price:['.x-price-primary [itemprop="price"]', '.x-price-primary', '.s-item__price', '.s-card__price', '[itemprop="price"]'],
       rating:['.x-star-rating [aria-label]', '.s-item__reviews [aria-label]', '[itemprop="ratingValue"]'],
       reviews:['.s-item__reviews-count', '.x-review-section__reviews-count', '[itemprop="reviewCount"]'],
-      sales:['.s-item__hotness', '.x-quantity__availability'],
+      sales:[], // Only an explicit 'sold' statement is captured by productMetrics; quantity available is not sales.
       shop:['.x-sellercard-atf__info__about-seller', '.s-item__seller-info-text', '[itemprop="seller"]'],
       query:[],param:['_nkw'],sort:['select[name="_sop"] option:checked'],filters:'input[type="checkbox"]:checked',page:['[aria-current="page"]'],
       fallbackCards:true
